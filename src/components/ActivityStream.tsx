@@ -1,7 +1,19 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text, Transform, useInput } from 'ink';
 import { AgentMessage } from '../lib/parser.js';
 import { MessageRenderer } from './MessageRenderer.js';
+
+// ANSI escape code to clear from cursor to end of line
+const CLEAR_TO_EOL = '\x1B[K';
+
+// Wrapper component that adds clear-to-end-of-line to prevent garbled text
+function ClearText({ children, ...props }: React.ComponentProps<typeof Text>) {
+  return (
+    <Transform transform={(line) => line + CLEAR_TO_EOL}>
+      <Text {...props}>{children}</Text>
+    </Transform>
+  );
+}
 
 export interface ActivityStreamProps {
   messages: AgentMessage[];
@@ -125,43 +137,43 @@ export function ActivityStream({ messages, isLive, availableHeight }: ActivitySt
 
   return (
     <Box flexDirection="column" paddingX={1} paddingY={1} height={availableHeight} width="100%" flexGrow={1}>
-      <Text bold>Activity</Text>
+      <ClearText bold>Activity</ClearText>
       {hasMoreAbove && (
-        <Text dimColor wrap="wrap">... (more above, use k or Page Up to scroll up)</Text>
+        <ClearText dimColor wrap="wrap">... (more above, use k or Page Up to scroll up)</ClearText>
       )}
       <Box flexDirection="column" flexGrow={1} flexShrink={1}>
         {visibleMessages.length === 0 && (
-          <Text dimColor>No activity yet</Text>
+          <ClearText dimColor>No activity yet</ClearText>
         )}
         {visibleMessages.map((message) => (
           <MessageRenderer key={message.uuid} message={message} />
         ))}
       </Box>
       {hasMoreBelow && (
-        <Text dimColor wrap="wrap">... (more below, use j or Page Down to scroll down)</Text>
+        <ClearText dimColor wrap="wrap">... (more below, use j or Page Down to scroll down)</ClearText>
       )}
 
       {/* Status bar at bottom */}
       <Box borderStyle="single" paddingX={1} flexDirection="row" width="100%">
-        <Text dimColor>
-          Model: <Text bold>{tokenStats.modelName}</Text>
-        </Text>
-        <Text dimColor> | </Text>
-        <Text dimColor>
-          Tokens: <Text bold>{formatTokens(tokenStats.totalTokens)}</Text>
-        </Text>
-        <Text dimColor> | </Text>
-        <Text dimColor>
-          Turns: <Text bold>{tokenStats.turnCount}</Text>
-        </Text>
+        <ClearText dimColor>
+          Model: <ClearText bold>{tokenStats.modelName}</ClearText>
+        </ClearText>
+        <ClearText dimColor> | </ClearText>
+        <ClearText dimColor>
+          Tokens: <ClearText bold>{formatTokens(tokenStats.totalTokens)}</ClearText>
+        </ClearText>
+        <ClearText dimColor> | </ClearText>
+        <ClearText dimColor>
+          Turns: <ClearText bold>{tokenStats.turnCount}</ClearText>
+        </ClearText>
         <Box flexGrow={1} />
         {messages.length > visibleMessageCount && (
-          <Text dimColor>
+          <ClearText dimColor>
             {scrollIndicator} Scroll: {scrollPercentage}%
-          </Text>
+          </ClearText>
         )}
         {isLive && (
-          <Text color="green"> ● Streaming</Text>
+          <ClearText color="green"> ● Streaming</ClearText>
         )}
       </Box>
     </Box>
