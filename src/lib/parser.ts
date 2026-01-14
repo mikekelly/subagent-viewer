@@ -22,6 +22,7 @@ export interface MessageUsage {
  */
 export interface AgentMessage {
   type: 'user' | 'assistant';
+  uuid: string;  // Unique message identifier
   agentId: string;
   slug: string;
   timestamp: string;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { AgentMessage } from '../lib/parser.js';
 import { MessageRenderer } from './MessageRenderer.js';
@@ -133,8 +133,8 @@ export function ActivityStream({ messages, isLive, availableHeight }: ActivitySt
         {visibleMessages.length === 0 && (
           <Text dimColor>No activity yet</Text>
         )}
-        {visibleMessages.map((message, index) => (
-          <MessageRenderer key={`${message.agentId}-${scrollOffset + index}`} message={message} />
+        {visibleMessages.map((message) => (
+          <MessageRenderer key={message.uuid} message={message} />
         ))}
       </Box>
       {hasMoreBelow && (

@@ -82,4 +82,7 @@ function SubagentViewer() {
   );
 }
 
+// Clear screen before render to prevent garbled text artifacts
+process.stdout.write('\x1B[2J\x1B[H');
+
 render(<SubagentViewer />);
