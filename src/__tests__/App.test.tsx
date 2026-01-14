@@ -57,7 +57,7 @@ describe('App', () => {
 
   it('should render split layout with sidebar and activity stream', () => {
     const { lastFrame } = render(
-      <App agents={mockAgents} />
+      <App agents={mockAgents} sessionId="test-session-123" />
     );
 
     const output = lastFrame();
@@ -67,7 +67,7 @@ describe('App', () => {
 
   it('should display agents in sidebar', () => {
     const { lastFrame } = render(
-      <App agents={mockAgents} />
+      <App agents={mockAgents} sessionId="test-session-123" />
     );
 
     const output = lastFrame();
@@ -77,7 +77,7 @@ describe('App', () => {
 
   it('should show activity for selected agent', () => {
     const { lastFrame } = render(
-      <App agents={mockAgents} />
+      <App agents={mockAgents} sessionId="test-session-123" />
     );
 
     const output = lastFrame();
@@ -87,7 +87,7 @@ describe('App', () => {
 
   it('should select first agent by default', () => {
     const { lastFrame } = render(
-      <App agents={mockAgents} />
+      <App agents={mockAgents} sessionId="test-session-123" />
     );
 
     const output = lastFrame();
@@ -97,7 +97,7 @@ describe('App', () => {
 
   it('should handle keyboard navigation with arrow down', () => {
     const { lastFrame, stdin } = render(
-      <App agents={mockAgents} />
+      <App agents={mockAgents} sessionId="test-session-123" />
     );
 
     // Simulate arrow down key
@@ -111,7 +111,7 @@ describe('App', () => {
 
   it('should handle keyboard navigation with arrow up', () => {
     const { lastFrame, stdin } = render(
-      <App agents={mockAgents} />
+      <App agents={mockAgents} sessionId="test-session-123" />
     );
 
     // Simulate arrow up key
@@ -124,7 +124,7 @@ describe('App', () => {
 
   it('should show empty state when no agents', () => {
     const { lastFrame } = render(
-      <App agents={[]} />
+      <App agents={[]} sessionId="test-session-123" />
     );
 
     const output = lastFrame();
@@ -144,7 +144,7 @@ describe('App', () => {
     ];
 
     const { lastFrame } = render(
-      <App agents={emptyAgents} />
+      <App agents={emptyAgents} sessionId="test-session-123" />
     );
 
     const output = lastFrame();

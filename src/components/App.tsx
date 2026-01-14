@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, useInput } from 'ink';
+import { Box, useInput, Text, useApp } from 'ink';
 import { AgentInfo } from '../lib/agentDiscovery.js';
 import { Sidebar } from './Sidebar.js';
 import { ActivityStream } from './ActivityStream.js';
@@ -7,9 +7,12 @@ import { useAgentStream } from '../hooks/useAgentStream.js';
 
 export interface AppProps {
   agents: AgentInfo[];
+  sessionId: string;
 }
 
-export function App({ agents }: AppProps) {
+export function App({ agents, sessionId }: AppProps) {
+  const { exit } = useApp();
+
   // Select first agent by default
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -25,8 +28,15 @@ export function App({ agents }: AppProps) {
   // Stream messages for selected agent
   const { messages, isStreaming } = useAgentStream(selectedAgent?.filePath ?? null);
 
-  // Handle arrow key navigation
+  // Handle keyboard input (navigation and quit)
   useInput((input, key) => {
+    // Quit on 'q'
+    if (input === 'q') {
+      exit();
+      return;
+    }
+
+    // Arrow key navigation
     if (key.upArrow) {
       setSelectedIndex(prev => {
         if (prev === 0) return sortedAgents.length - 1; // Wrap to bottom
@@ -47,17 +57,31 @@ export function App({ agents }: AppProps) {
     }
   }, [sortedAgents.length, selectedIndex]);
 
+  // Truncate session ID for display (first 8 chars)
+  const shortSessionId = sessionId ? sessionId.substring(0, 8) : 'unknown';
+
   return (
-    <Box flexDirection="row" height="100%">
-      <Box width={30} borderStyle="single" borderRight>
-        <Sidebar
-          agents={sortedAgents}
-          selectedId={selectedAgent?.agentId ?? null}
-          onSelect={() => {}}
-        />
+    <Box flexDirection="column" height="100%">
+      {/* Header */}
+      <Box borderStyle="single" borderBottom paddingX={1}>
+        <Text bold color="cyan">Subagent Viewer</Text>
+        <Text dimColor> - Session: {shortSessionId}</Text>
+        <Box flexGrow={1} />
+        <Text dimColor>(q to quit)</Text>
       </Box>
-      <Box flexGrow={1}>
-        <ActivityStream messages={messages} isLive={isStreaming} />
+
+      {/* Main content area */}
+      <Box flexDirection="row" flexGrow={1}>
+        <Box width={30} borderStyle="single" borderRight>
+          <Sidebar
+            agents={sortedAgents}
+            selectedId={selectedAgent?.agentId ?? null}
+            onSelect={() => {}}
+          />
+        </Box>
+        <Box flexGrow={1}>
+          <ActivityStream messages={messages} isLive={isStreaming} />
+        </Box>
       </Box>
     </Box>
   );
