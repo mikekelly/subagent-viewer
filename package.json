@@ -1,0 +1,32 @@
+{
+  "name": "subagent-viewer",
+  "version": "0.1.0",
+  "description": "TUI for viewing Claude Code subagent activity in real-time",
+  "type": "module",
+  "bin": {
+    "subagent-viewer": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "claude",
+    "subagent",
+    "tui",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ink": "^6.6.0",
+    "react": "^19.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.8",
+    "@types/react": "^19.2.8",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}
