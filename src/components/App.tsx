@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, useInput, Text, useApp } from 'ink';
+import { Box, useInput, Text, useApp, useStdout } from 'ink';
 import { AgentInfo } from '../lib/agentDiscovery.js';
 import { Sidebar } from './Sidebar.js';
 import { ActivityStream } from './ActivityStream.js';
@@ -12,6 +12,10 @@ export interface AppProps {
 
 export function App({ agents, sessionId }: AppProps) {
   const { exit } = useApp();
+  const { stdout } = useStdout();
+
+  // Get terminal dimensions
+  const terminalHeight = stdout?.rows ?? 24;
 
   // Select first agent by default
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -60,8 +64,12 @@ export function App({ agents, sessionId }: AppProps) {
   // Truncate session ID for display (first 8 chars)
   const shortSessionId = sessionId ? sessionId.substring(0, 8) : 'unknown';
 
+  // Calculate available height for main content (terminal height - header)
+  const headerHeight = 3; // Header takes up 3 lines (border, content, border)
+  const contentHeight = terminalHeight - headerHeight;
+
   return (
-    <Box flexDirection="column" height="100%">
+    <Box flexDirection="column" height={terminalHeight}>
       {/* Header */}
       <Box borderStyle="single" borderBottom paddingX={1}>
         <Text bold color="cyan">Subagent Viewer</Text>
@@ -71,7 +79,7 @@ export function App({ agents, sessionId }: AppProps) {
       </Box>
 
       {/* Main content area */}
-      <Box flexDirection="row" flexGrow={1}>
+      <Box flexDirection="row" height={contentHeight}>
         <Box width={30} borderStyle="single" borderRight>
           <Sidebar
             agents={sortedAgents}
@@ -80,7 +88,7 @@ export function App({ agents, sessionId }: AppProps) {
           />
         </Box>
         <Box flexGrow={1}>
-          <ActivityStream messages={messages} isLive={isStreaming} />
+          <ActivityStream messages={messages} isLive={isStreaming} availableHeight={contentHeight} />
         </Box>
       </Box>
     </Box>

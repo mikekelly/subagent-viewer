@@ -6,8 +6,21 @@ import { AgentInfo } from '../lib/agentDiscovery.js';
 import { AgentMessage } from '../lib/parser.js';
 import * as useAgentStreamModule from '../hooks/useAgentStream.js';
 
-// Mock the useAgentStream hook
-const mockUseAgentStream = vi.fn();
+// Mock ink module with useStdout
+vi.mock('ink', async () => {
+  const actual = await vi.importActual('ink');
+  return {
+    ...actual,
+    useStdout: vi.fn(() => ({
+      stdout: {
+        rows: 30,
+        columns: 100,
+        write: vi.fn(),
+      } as any,
+      write: vi.fn(),
+    })),
+  };
+});
 
 describe('App', () => {
   const mockAgents: AgentInfo[] = [
@@ -43,9 +56,6 @@ describe('App', () => {
   ];
 
   beforeEach(() => {
-    // Reset mock before each test
-    mockUseAgentStream.mockReset();
-
     // Mock useAgentStream hook
     vi.spyOn(useAgentStreamModule, 'useAgentStream').mockImplementation((filePath) => {
       if (filePath === '/path/to/agent-abc123.jsonl') {
@@ -150,5 +160,18 @@ describe('App', () => {
     const output = lastFrame();
     expect(output).toContain('empty-agent');
     expect(output).toContain('No activity yet');
+  });
+
+  it('should use terminal dimensions to set fixed viewport height', () => {
+    const { lastFrame } = render(
+      <App agents={mockAgents} sessionId="test-session-123" />
+    );
+
+    const output = lastFrame();
+    const lines = output.split('\n');
+
+    // The output should fit within the terminal height
+    // We expect the UI to be constrained to ~30 lines (mocked terminal rows)
+    expect(lines.length).toBeLessThanOrEqual(31); // Allow for some margin
   });
 });
