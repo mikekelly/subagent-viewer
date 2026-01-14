@@ -2,8 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { render, Text, Box } from 'ink';
 import { getProjectPath, getClaudeProjectDir, findCurrentSession, getSubagentsDir } from './lib/session.js';
 import { useAgentDiscovery } from './hooks/useAgentDiscovery.js';
+import { useAgentMessages } from './hooks/useAgentMessages.js';
+import { App } from './components/App.js';
+import { AgentMessage } from './lib/parser.js';
+import * as fs from 'fs';
+import { parseJsonlLine } from './lib/parser.js';
 
-function App() {
+function SubagentViewer() {
   const [subagentsDir, setSubagentsDir] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const agents = useAgentDiscovery(subagentsDir);
@@ -43,21 +48,23 @@ function App() {
     return <Text>Discovering session...</Text>;
   }
 
-  return (
-    <Box flexDirection="column">
-      <Text bold>Subagent Viewer</Text>
-      <Text dimColor>Watching: {subagentsDir}</Text>
-      <Text>{'\n'}</Text>
-      <Text>Found {agents.length} agent(s):</Text>
-      {agents.map(agent => (
-        <Box key={agent.agentId} marginLeft={2}>
-          <Text>
-            {agent.isLive ? '🟢' : '⚪'} {agent.slug} ({agent.agentId})
-          </Text>
-        </Box>
-      ))}
-    </Box>
-  );
+  // Function to load messages for a given agent
+  const getMessages = (agentId: string): AgentMessage[] => {
+    const agent = agents.find(a => a.agentId === agentId);
+    if (!agent) return [];
+
+    try {
+      const content = fs.readFileSync(agent.filePath, 'utf-8');
+      const lines = content.split('\n');
+      return lines
+        .map(line => parseJsonlLine(line))
+        .filter((msg): msg is AgentMessage => msg !== null);
+    } catch {
+      return [];
+    }
+  };
+
+  return <App agents={agents} getMessages={getMessages} />;
 }
 
-render(<App />);
+render(<SubagentViewer />);
