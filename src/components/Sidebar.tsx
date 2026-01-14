@@ -21,12 +21,13 @@ export function Sidebar({ agents, selectedId, onSelect }: SidebarProps) {
   const renderAgent = (agent: AgentInfo) => {
     const isSelected = agent.agentId === selectedId;
 
-    // Truncate slug if too long (leave room for indent and padding)
+    // Use agentId as display name (shows unique agent identifier)
+    // Truncate if too long (leave room for indent and padding)
     // Sidebar width is 30, minus padding, indent, and borders leaves ~24 chars
-    const maxSlugLength = 24;
-    const displaySlug = agent.slug.length > maxSlugLength
-      ? agent.slug.substring(0, maxSlugLength - 1) + '…'
-      : agent.slug;
+    const maxLength = 24;
+    const displayName = agent.agentId.length > maxLength
+      ? agent.agentId.substring(0, maxLength - 1) + '…'
+      : agent.agentId;
 
     return (
       <Box key={agent.agentId}>
@@ -34,7 +35,7 @@ export function Sidebar({ agents, selectedId, onSelect }: SidebarProps) {
           color={isSelected ? 'black' : undefined}
           backgroundColor={isSelected ? 'white' : undefined}
         >
-          {'  '}{displaySlug}
+          {'  '}{displayName}
         </Text>
       </Box>
     );
@@ -56,7 +57,7 @@ export function Sidebar({ agents, selectedId, onSelect }: SidebarProps) {
         <>
           {liveAgents.length > 0 && (
             <>
-              <Text bold color="green">Live ({liveAgents.length})</Text>
+              <Text bold color="green">Active agents ({liveAgents.length})</Text>
               {liveAgents.map(renderAgent)}
               <Box height={1} />
             </>
@@ -64,7 +65,7 @@ export function Sidebar({ agents, selectedId, onSelect }: SidebarProps) {
 
           {completedAgents.length > 0 && (
             <>
-              <Text bold dimColor>Completed ({completedAgents.length})</Text>
+              <Text bold dimColor>Inactive agents ({completedAgents.length})</Text>
               {completedAgents.map(renderAgent)}
             </>
           )}

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { getProjectPath, getClaudeProjectDir, getSubagentsDir, findCurrentSession } from '../lib/session.js';
+import { getProjectPath, getClaudeProjectDir, getSubagentsDir, findCurrentSession, listSessions } from '../lib/session.js';
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -95,6 +95,73 @@ describe('session', () => {
 
       const result = await findCurrentSession(tmpDir);
       expect(result).toBe('session-123');
+    });
+  });
+
+  describe('listSessions', () => {
+    const tmpDir = path.join(os.tmpdir(), 'list-sessions-test-' + Date.now());
+
+    beforeEach(async () => {
+      await fs.promises.mkdir(tmpDir, { recursive: true });
+    });
+
+    afterEach(async () => {
+      await fs.promises.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should return empty array when no sessions exist', async () => {
+      const result = await listSessions(tmpDir);
+      expect(result).toEqual([]);
+    });
+
+    it('should return all sessions ordered by last modified (most recent first)', async () => {
+      // Create three sessions with different timestamps
+      const session1 = path.join(tmpDir, 'session-111');
+      const session2 = path.join(tmpDir, 'session-222');
+      const session3 = path.join(tmpDir, 'session-333');
+
+      await fs.promises.mkdir(path.join(session1, 'subagents'), { recursive: true });
+      await fs.promises.mkdir(path.join(session2, 'subagents'), { recursive: true });
+      await fs.promises.mkdir(path.join(session3, 'subagents'), { recursive: true });
+
+      // Write files with different timestamps
+      await fs.promises.writeFile(path.join(session1, 'subagents', 'agent-abc.jsonl'), 'test');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await fs.promises.writeFile(path.join(session2, 'subagents', 'agent-def.jsonl'), 'test');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await fs.promises.writeFile(path.join(session3, 'subagents', 'agent-ghi.jsonl'), 'test');
+
+      const result = await listSessions(tmpDir);
+
+      expect(result).toHaveLength(3);
+      expect(result[0].sessionId).toBe('session-333'); // Most recent
+      expect(result[1].sessionId).toBe('session-222');
+      expect(result[2].sessionId).toBe('session-111'); // Oldest
+
+      // Verify all have lastModified dates
+      result.forEach(session => {
+        expect(session.lastModified).toBeInstanceOf(Date);
+      });
+    });
+
+    it('should ignore directories without dashes', async () => {
+      await fs.promises.mkdir(path.join(tmpDir, 'notasession'), { recursive: true });
+      await fs.promises.mkdir(path.join(tmpDir, 'session-123'), { recursive: true });
+
+      const result = await listSessions(tmpDir);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].sessionId).toBe('session-123');
+    });
+
+    it('should include sessions without subagents directory', async () => {
+      await fs.promises.mkdir(path.join(tmpDir, 'session-111'), { recursive: true });
+      await fs.promises.mkdir(path.join(tmpDir, 'session-222', 'subagents'), { recursive: true });
+
+      const result = await listSessions(tmpDir);
+
+      expect(result).toHaveLength(2);
+      expect(result.map(s => s.sessionId).sort()).toEqual(['session-111', 'session-222']);
     });
   });
 });

@@ -14,8 +14,8 @@ export function ActivityStream({ messages, isLive, availableHeight }: ActivitySt
   // For simplicity, we'll assume each message is ~3 lines (timestamp + content + margin)
   const linesPerMessage = 3;
 
-  // Reserve space for status bar at bottom (3 lines)
-  const statusBarHeight = 3;
+  // Reserve space for status bar at bottom (2 lines: border + content)
+  const statusBarHeight = 2;
   const effectiveHeight = availableHeight ? availableHeight - statusBarHeight : undefined;
 
   // Calculate visible message range based on available height
@@ -69,12 +69,16 @@ export function ActivityStream({ messages, isLive, availableHeight }: ActivitySt
 
   // Calculate cumulative token usage from assistant messages
   const tokenStats = useMemo(() => {
+    let totalInputTokens = 0;
     let totalOutputTokens = 0;
     let turnCount = 0;
     let modelName = 'unknown';
 
     for (const msg of messages) {
       if (msg.type === 'assistant') {
+        if (msg.message.usage?.input_tokens) {
+          totalInputTokens += msg.message.usage.input_tokens;
+        }
         if (msg.message.usage?.output_tokens) {
           totalOutputTokens += msg.message.usage.output_tokens;
         }
@@ -85,8 +89,17 @@ export function ActivityStream({ messages, isLive, availableHeight }: ActivitySt
       }
     }
 
-    return { totalOutputTokens, turnCount, modelName };
+    const totalTokens = totalInputTokens + totalOutputTokens;
+    return { totalTokens, turnCount, modelName };
   }, [messages]);
+
+  // Format large numbers with K suffix
+  const formatTokens = (tokens: number): string => {
+    if (tokens >= 1000) {
+      return `${(tokens / 1000).toFixed(1)}K`;
+    }
+    return tokens.toString();
+  };
 
   // Calculate scroll position percentage for indicator
   const scrollPercentage = useMemo(() => {
@@ -103,19 +116,20 @@ export function ActivityStream({ messages, isLive, availableHeight }: ActivitySt
       return '[========]'; // All visible
     }
     const barLength = 8;
-    const filledLength = Math.round((scrollPercentage / 100) * barLength);
+    const filledLength = Math.max(0, Math.min(barLength, Math.round((scrollPercentage / 100) * barLength)));
+    const emptyLength = Math.max(0, barLength - filledLength);
     const filled = '='.repeat(filledLength);
-    const empty = '-'.repeat(barLength - filledLength);
+    const empty = '-'.repeat(emptyLength);
     return `[${filled}${empty}]`;
   }, [scrollPercentage, messages.length, visibleMessageCount]);
 
   return (
-    <Box flexDirection="column" paddingX={1} paddingY={1} height={availableHeight} overflow="hidden">
+    <Box flexDirection="column" paddingX={1} paddingY={1} height={availableHeight} width="100%" flexGrow={1}>
       <Text bold>Activity</Text>
       {hasMoreAbove && (
-        <Text dimColor>... (more above, use k or Page Up to scroll up)</Text>
+        <Text dimColor wrap="wrap">... (more above, use k or Page Up to scroll up)</Text>
       )}
-      <Box flexDirection="column" flexGrow={1} overflow="hidden">
+      <Box flexDirection="column" flexGrow={1} flexShrink={1}>
         {visibleMessages.length === 0 && (
           <Text dimColor>No activity yet</Text>
         )}
@@ -124,17 +138,17 @@ export function ActivityStream({ messages, isLive, availableHeight }: ActivitySt
         ))}
       </Box>
       {hasMoreBelow && (
-        <Text dimColor>... (more below, use j or Page Down to scroll down)</Text>
+        <Text dimColor wrap="wrap">... (more below, use j or Page Down to scroll down)</Text>
       )}
 
       {/* Status bar at bottom */}
-      <Box borderStyle="single" borderTop marginTop={1} paddingX={1} flexDirection="row">
+      <Box borderStyle="single" paddingX={1} flexDirection="row" width="100%">
         <Text dimColor>
           Model: <Text bold>{tokenStats.modelName}</Text>
         </Text>
         <Text dimColor> | </Text>
         <Text dimColor>
-          Output tokens: <Text bold>{tokenStats.totalOutputTokens.toLocaleString()}</Text>
+          Tokens: <Text bold>{formatTokens(tokenStats.totalTokens)}</Text>
         </Text>
         <Text dimColor> | </Text>
         <Text dimColor>
@@ -143,7 +157,7 @@ export function ActivityStream({ messages, isLive, availableHeight }: ActivitySt
         <Box flexGrow={1} />
         {messages.length > visibleMessageCount && (
           <Text dimColor>
-            {scrollIndicator} {scrollPercentage}%
+            {scrollIndicator} Scroll: {scrollPercentage}%
           </Text>
         )}
         {isLive && (

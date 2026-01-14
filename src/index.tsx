@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { render, Text, Box } from 'ink';
-import { getProjectPath, getClaudeProjectDir, findCurrentSession, getSubagentsDir } from './lib/session.js';
+import { getProjectPath, getClaudeProjectDir, listSessions, getSubagentsDir, SessionInfo } from './lib/session.js';
 import { useAgentDiscovery } from './hooks/useAgentDiscovery.js';
 import { App } from './components/App.js';
 
 function SubagentViewer() {
-  const [subagentsDir, setSubagentsDir] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [projectDir, setProjectDir] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  const currentSession = sessions[selectedSessionIndex];
+  const subagentsDir = currentSession && projectDir
+    ? getSubagentsDir(projectDir, currentSession.sessionId)
+    : null;
   const agents = useAgentDiscovery(subagentsDir);
 
   useEffect(() => {
@@ -27,18 +33,17 @@ function SubagentViewer() {
           return;
         }
 
-        const sessionId = await findCurrentSession(projectDir);
+        const allSessions = await listSessions(projectDir);
 
-        if (!sessionId) {
+        if (allSessions.length === 0) {
           setError(
-            'No active Claude session found. Start a Claude Code session in this project first.'
+            'No Claude sessions found. Start a Claude Code session in this project first.'
           );
           return;
         }
 
-        const dir = getSubagentsDir(projectDir, sessionId);
-        setSubagentsDir(dir);
-        setSessionId(sessionId);
+        setProjectDir(projectDir);
+        setSessions(allSessions);
       } catch (err) {
         // Handle permission errors and other unexpected errors
         const errorMessage = err instanceof Error ? err.message : String(err);
@@ -63,11 +68,18 @@ function SubagentViewer() {
     );
   }
 
-  if (!subagentsDir) {
-    return <Text>Discovering session...</Text>;
+  if (sessions.length === 0) {
+    return <Text>Discovering sessions...</Text>;
   }
 
-  return <App agents={agents} sessionId={sessionId ?? ''} />;
+  return (
+    <App
+      agents={agents}
+      sessions={sessions}
+      selectedSessionIndex={selectedSessionIndex}
+      onSessionChange={setSelectedSessionIndex}
+    />
+  );
 }
 
 render(<SubagentViewer />);
