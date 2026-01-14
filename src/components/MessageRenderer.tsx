@@ -1,12 +1,6 @@
 import React from 'react';
-import { Box, Text, Transform } from 'ink';
+import { Box, Text } from 'ink';
 import { AgentMessage, ContentBlock } from '../lib/parser.js';
-
-// Clear to end of line after each line to prevent artifacts
-const clearLine = (text: string): string => {
-  // Add ANSI clear-to-end-of-line escape sequence after each line
-  return text.split('\n').map(line => line + '\x1B[K').join('\n');
-};
 
 export interface MessageRendererProps {
   message: AgentMessage;
@@ -75,15 +69,13 @@ export function MessageRenderer({ message }: MessageRendererProps) {
   const content = message.message.content;
 
   return (
-    <Transform transform={clearLine}>
-      <Box flexDirection="column" marginBottom={1}>
-        <Text dimColor>[{timestamp}]</Text>
-        {typeof content === 'string' ? (
-          <Text color="yellow" wrap="wrap">{content}</Text>
-        ) : (
-          content.map((block, index) => renderContentBlock(block, index))
-        )}
-      </Box>
-    </Transform>
+    <Box flexDirection="column" marginBottom={1}>
+      <Text dimColor>[{timestamp}]</Text>
+      {typeof content === 'string' ? (
+        <Text color="yellow" wrap="wrap">{content}</Text>
+      ) : (
+        content.map((block, index) => renderContentBlock(block, index))
+      )}
+    </Box>
   );
 }
