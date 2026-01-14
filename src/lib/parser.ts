@@ -8,6 +8,16 @@ export type ContentBlock =
   | { type: 'thinking'; thinking: string };
 
 /**
+ * Usage statistics for assistant messages
+ */
+export interface MessageUsage {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens?: number;
+  cache_creation_input_tokens?: number;
+}
+
+/**
  * Message structure from agent JSONL files
  */
 export interface AgentMessage {
@@ -18,6 +28,8 @@ export interface AgentMessage {
   message: {
     role: string;
     content: ContentBlock[] | string;  // User messages have string content, assistant has array
+    model?: string;  // Model name (e.g., "sonnet")
+    usage?: MessageUsage;  // Usage stats for assistant messages
   };
 }
 

@@ -45,7 +45,7 @@ describe('Sidebar', () => {
     );
 
     const output = lastFrame();
-    expect(output).toContain('●'); // Live indicator
+    expect(output).toContain('Live (1)'); // Live section header
   });
 
   it('should show completed indicator for completed agents', () => {
@@ -58,7 +58,7 @@ describe('Sidebar', () => {
     );
 
     const output = lastFrame();
-    expect(output).toContain('○'); // Completed indicator
+    expect(output).toContain('Completed (1)'); // Completed section header
   });
 
   it('should highlight selected agent', () => {
@@ -131,7 +131,7 @@ describe('Sidebar', () => {
     );
 
     const output = lastFrame();
-    expect(output).toContain('(live)');
-    expect(output).toContain('(completed)');
+    expect(output).toContain('Live (1)');
+    expect(output).toContain('Completed (1)');
   });
 });

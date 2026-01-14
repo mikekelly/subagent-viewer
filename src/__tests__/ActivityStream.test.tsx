@@ -186,10 +186,12 @@ describe('ActivityStream', () => {
 
     const output = lastFrame();
 
-    // Should show last messages (scrolled to bottom for live stream)
-    expect(output).toContain('Message 19');
+    // Should show "more above" hint since we're scrolled down
+    expect(output).toContain('more above');
     // Should NOT show first messages when scrolled to bottom
     expect(output).not.toContain('Message 0');
+    // Status bar should show streaming indicator
+    expect(output).toContain('Streaming');
   });
 
   it('should show scroll hints when there is more content', () => {

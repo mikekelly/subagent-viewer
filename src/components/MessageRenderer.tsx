@@ -25,17 +25,17 @@ function renderContentBlock(block: ContentBlock, index: number) {
   switch (block.type) {
     case 'text':
       return (
-        <Box key={index} flexDirection="column">
-          <Text>{block.text}</Text>
+        <Box key={index} flexDirection="column" overflow="hidden">
+          <Text wrap="wrap">{block.text}</Text>
         </Box>
       );
 
     case 'tool_use': {
       const inputStr = JSON.stringify(block.input, null, 2);
       return (
-        <Box key={index} flexDirection="column" marginTop={1}>
+        <Box key={index} flexDirection="column" marginTop={1} overflow="hidden">
           <Text bold color="cyan">Tool: {block.name}</Text>
-          <Text dimColor>{truncate(inputStr)}</Text>
+          <Text dimColor wrap="truncate-end">{truncate(inputStr)}</Text>
         </Box>
       );
     }
@@ -45,17 +45,17 @@ function renderContentBlock(block: ContentBlock, index: number) {
         ? block.content
         : JSON.stringify(block.content);
       return (
-        <Box key={index} flexDirection="column" marginTop={1}>
+        <Box key={index} flexDirection="column" marginTop={1} overflow="hidden">
           <Text bold color="green">Tool result</Text>
-          <Text dimColor>{truncate(contentStr)}</Text>
+          <Text dimColor wrap="truncate-end">{truncate(contentStr)}</Text>
         </Box>
       );
     }
 
     case 'thinking':
       return (
-        <Box key={index} flexDirection="column" marginTop={1}>
-          <Text dimColor italic>{block.thinking}</Text>
+        <Box key={index} flexDirection="column" marginTop={1} overflow="hidden">
+          <Text dimColor italic wrap="wrap">{block.thinking}</Text>
         </Box>
       );
 
@@ -69,10 +69,10 @@ export function MessageRenderer({ message }: MessageRendererProps) {
   const content = message.message.content;
 
   return (
-    <Box flexDirection="column" marginBottom={1}>
+    <Box flexDirection="column" marginBottom={1} overflow="hidden">
       <Text dimColor>[{timestamp}]</Text>
       {typeof content === 'string' ? (
-        <Text color="yellow">{content}</Text>
+        <Text color="yellow" wrap="wrap">{content}</Text>
       ) : (
         content.map((block, index) => renderContentBlock(block, index))
       )}

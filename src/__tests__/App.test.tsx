@@ -71,7 +71,7 @@ describe('App', () => {
     );
 
     const output = lastFrame();
-    expect(output).toContain('Agents'); // Sidebar header
+    expect(output).toContain('Live (1)'); // Sidebar with live agents section
     expect(output).toContain('Activity'); // ActivityStream header
   });
 
@@ -115,8 +115,8 @@ describe('App', () => {
 
     const output = lastFrame();
     // Selection should move but we can't easily test the highlight without visual inspection
-    // Just ensure it still renders
-    expect(output).toContain('Agents');
+    // Just ensure it still renders with Live section
+    expect(output).toContain('Live (1)');
   });
 
   it('should handle keyboard navigation with arrow up', () => {
@@ -129,7 +129,7 @@ describe('App', () => {
 
     const output = lastFrame();
     // Should still render correctly (might wrap to bottom if at top)
-    expect(output).toContain('Agents');
+    expect(output).toContain('Live (1)');
   });
 
   it('should show empty state when no agents', () => {

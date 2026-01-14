@@ -75,7 +75,8 @@ describe('MessageRenderer', () => {
     const { lastFrame } = render(<MessageRenderer message={message} />);
     const output = lastFrame();
 
-    expect(output).toContain('...');
+    // Should show truncation indicator (either ... or …)
+    expect(output.includes('...') || output.includes('…')).toBe(true);
   });
 
   it('should render tool_result content block', () => {
@@ -125,7 +126,8 @@ describe('MessageRenderer', () => {
     const { lastFrame } = render(<MessageRenderer message={message} />);
     const output = lastFrame();
 
-    expect(output).toContain('...');
+    // Should show truncation indicator (either ... or …)
+    expect(output.includes('...') || output.includes('…')).toBe(true);
   });
 
   it('should render thinking content block', () => {
