@@ -17,7 +17,7 @@ export interface AgentMessage {
   timestamp: string;
   message: {
     role: string;
-    content: ContentBlock[];
+    content: ContentBlock[] | string;  // User messages have string content, assistant has array
   };
 }
 
@@ -36,6 +36,7 @@ export function parseJsonlLine(line: string): AgentMessage | null {
     const parsed = JSON.parse(trimmed);
 
     // Basic validation - ensure required fields exist
+    // Note: message.content can be a string (user messages) or array (assistant messages)
     if (
       !parsed.type ||
       !parsed.agentId ||
@@ -43,7 +44,7 @@ export function parseJsonlLine(line: string): AgentMessage | null {
       !parsed.timestamp ||
       !parsed.message ||
       !parsed.message.role ||
-      !Array.isArray(parsed.message.content)
+      (typeof parsed.message.content !== 'string' && !Array.isArray(parsed.message.content))
     ) {
       return null;
     }

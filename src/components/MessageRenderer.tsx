@@ -66,12 +66,15 @@ function renderContentBlock(block: ContentBlock, index: number) {
 
 export function MessageRenderer({ message }: MessageRendererProps) {
   const timestamp = formatTimestamp(message.timestamp);
+  const content = message.message.content;
 
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Text dimColor>[{timestamp}]</Text>
-      {message.message.content.map((block, index) =>
-        renderContentBlock(block, index)
+      {typeof content === 'string' ? (
+        <Text color="yellow">{content}</Text>
+      ) : (
+        content.map((block, index) => renderContentBlock(block, index))
       )}
     </Box>
   );
