@@ -105,7 +105,7 @@ describe('MessageRenderer', () => {
   });
 
   it('should truncate long tool results', () => {
-    const longContent = 'x'.repeat(200);
+    const longContent = 'x'.repeat(250); // More than 200 to trigger truncation
     const message: AgentMessage = {
       type: 'user',
       agentId: 'abc123',

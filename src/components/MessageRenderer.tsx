@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Text, Transform } from 'ink';
 import { AgentMessage, ContentBlock } from '../lib/parser.js';
+import { sanitizeText } from '../lib/sanitize.js';
 
 // ANSI escape code to clear from cursor to end of line
 const CLEAR_TO_EOL = '\x1B[K';
@@ -38,7 +39,7 @@ function renderContentBlock(block: ContentBlock, index: number) {
     case 'text':
       return (
         <Box key={index} flexDirection="column">
-          <ClearText wrap="wrap">{block.text}</ClearText>
+          <ClearText wrap="wrap">{sanitizeText(block.text)}</ClearText>
         </Box>
       );
 
@@ -46,8 +47,8 @@ function renderContentBlock(block: ContentBlock, index: number) {
       const inputStr = JSON.stringify(block.input, null, 2);
       return (
         <Box key={index} flexDirection="column" marginTop={1}>
-          <ClearText bold color="cyan">Tool: {block.name}</ClearText>
-          <ClearText dimColor wrap="wrap">{truncate(inputStr, 200)}</ClearText>
+          <ClearText bold color="cyan">Tool: {sanitizeText(block.name)}</ClearText>
+          <ClearText dimColor wrap="wrap">{sanitizeText(truncate(inputStr, 200))}</ClearText>
         </Box>
       );
     }
@@ -59,7 +60,7 @@ function renderContentBlock(block: ContentBlock, index: number) {
       return (
         <Box key={index} flexDirection="column" marginTop={1}>
           <ClearText bold color="green">Tool result</ClearText>
-          <ClearText dimColor wrap="wrap">{truncate(contentStr, 200)}</ClearText>
+          <ClearText dimColor wrap="wrap">{sanitizeText(truncate(contentStr, 200))}</ClearText>
         </Box>
       );
     }
@@ -67,7 +68,7 @@ function renderContentBlock(block: ContentBlock, index: number) {
     case 'thinking':
       return (
         <Box key={index} flexDirection="column" marginTop={1}>
-          <ClearText dimColor italic wrap="wrap">{block.thinking}</ClearText>
+          <ClearText dimColor italic wrap="wrap">{sanitizeText(block.thinking)}</ClearText>
         </Box>
       );
 
@@ -84,7 +85,7 @@ export function MessageRenderer({ message }: MessageRendererProps) {
     <Box flexDirection="column" marginBottom={1}>
       <ClearText dimColor>[{timestamp}]</ClearText>
       {typeof content === 'string' ? (
-        <ClearText color="yellow" wrap="wrap">{content}</ClearText>
+        <ClearText color="yellow" wrap="wrap">{sanitizeText(content)}</ClearText>
       ) : (
         content.map((block, index) => renderContentBlock(block, index))
       )}
