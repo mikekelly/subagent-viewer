@@ -1,6 +1,16 @@
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, Transform } from 'ink';
 import { AgentInfo } from '../lib/agentDiscovery.js';
+
+const CLEAR_TO_EOL = '\x1B[K';
+
+function ClearText({ children, ...props }: React.ComponentProps<typeof Text>) {
+  return (
+    <Transform transform={(line) => line + CLEAR_TO_EOL}>
+      <Text {...props}>{children}</Text>
+    </Transform>
+  );
+}
 
 export interface SidebarProps {
   agents: AgentInfo[];
@@ -31,12 +41,12 @@ export function Sidebar({ agents, selectedId, onSelect }: SidebarProps) {
 
     return (
       <Box key={agent.agentId}>
-        <Text
+        <ClearText
           color={isSelected ? 'black' : undefined}
           backgroundColor={isSelected ? 'white' : undefined}
         >
           {'  '}{displayName}
-        </Text>
+        </ClearText>
       </Box>
     );
   };
@@ -45,19 +55,19 @@ export function Sidebar({ agents, selectedId, onSelect }: SidebarProps) {
     <Box flexDirection="column" paddingX={1} paddingY={1}>
       {agents.length === 0 ? (
         <Box flexDirection="column">
-          <Text bold>Agents (0)</Text>
+          <ClearText bold>Agents (0)</ClearText>
           <Box height={1} />
-          <Text dimColor>Waiting for agents...</Text>
+          <ClearText dimColor>Waiting for agents...</ClearText>
           <Box height={1} />
-          <Text dimColor>Subagents will appear here</Text>
-          <Text dimColor>when Claude Code creates</Text>
-          <Text dimColor>background tasks.</Text>
+          <ClearText dimColor>Subagents will appear here</ClearText>
+          <ClearText dimColor>when Claude Code creates</ClearText>
+          <ClearText dimColor>background tasks.</ClearText>
         </Box>
       ) : (
         <>
           {liveAgents.length > 0 && (
             <>
-              <Text bold color="green">Active agents ({liveAgents.length})</Text>
+              <ClearText bold color="green">Active agents ({liveAgents.length})</ClearText>
               {liveAgents.map(renderAgent)}
               <Box height={1} />
             </>
@@ -65,7 +75,7 @@ export function Sidebar({ agents, selectedId, onSelect }: SidebarProps) {
 
           {completedAgents.length > 0 && (
             <>
-              <Text bold dimColor>Inactive agents ({completedAgents.length})</Text>
+              <ClearText bold dimColor>Inactive agents ({completedAgents.length})</ClearText>
               {completedAgents.map(renderAgent)}
             </>
           )}
