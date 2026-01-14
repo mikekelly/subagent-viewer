@@ -1,18 +1,6 @@
 import React from 'react';
-import { Box, Text, Transform } from 'ink';
+import { Box, Text } from 'ink';
 import { AgentInfo } from '../lib/agentDiscovery.js';
-
-// ANSI escape code to clear from cursor to end of line
-const CLEAR_TO_EOL = '\x1B[K';
-
-// Wrapper component that adds clear-to-end-of-line to prevent garbled text
-function ClearText({ children, ...props }: React.ComponentProps<typeof Text>) {
-  return (
-    <Transform transform={(line) => line + CLEAR_TO_EOL}>
-      <Text {...props}>{children}</Text>
-    </Transform>
-  );
-}
 
 export interface SidebarProps {
   agents: AgentInfo[];
@@ -43,12 +31,12 @@ export function Sidebar({ agents, selectedId, onSelect }: SidebarProps) {
 
     return (
       <Box key={agent.agentId}>
-        <ClearText
+        <Text
           color={isSelected ? 'black' : undefined}
           backgroundColor={isSelected ? 'white' : undefined}
         >
           {'  '}{displayName}
-        </ClearText>
+        </Text>
       </Box>
     );
   };
@@ -57,19 +45,19 @@ export function Sidebar({ agents, selectedId, onSelect }: SidebarProps) {
     <Box flexDirection="column" paddingX={1} paddingY={1}>
       {agents.length === 0 ? (
         <Box flexDirection="column">
-          <ClearText bold>Agents (0)</ClearText>
+          <Text bold>Agents (0)</Text>
           <Box height={1} />
-          <ClearText dimColor>Waiting for agents...</ClearText>
+          <Text dimColor>Waiting for agents...</Text>
           <Box height={1} />
-          <ClearText dimColor>Subagents will appear here</ClearText>
-          <ClearText dimColor>when Claude Code creates</ClearText>
-          <ClearText dimColor>background tasks.</ClearText>
+          <Text dimColor>Subagents will appear here</Text>
+          <Text dimColor>when Claude Code creates</Text>
+          <Text dimColor>background tasks.</Text>
         </Box>
       ) : (
         <>
           {liveAgents.length > 0 && (
             <>
-              <ClearText bold color="green">Active agents ({liveAgents.length})</ClearText>
+              <Text bold color="green">Active agents ({liveAgents.length})</Text>
               {liveAgents.map(renderAgent)}
               <Box height={1} />
             </>
@@ -77,7 +65,7 @@ export function Sidebar({ agents, selectedId, onSelect }: SidebarProps) {
 
           {completedAgents.length > 0 && (
             <>
-              <ClearText bold dimColor>Inactive agents ({completedAgents.length})</ClearText>
+              <Text bold dimColor>Inactive agents ({completedAgents.length})</Text>
               {completedAgents.map(renderAgent)}
             </>
           )}

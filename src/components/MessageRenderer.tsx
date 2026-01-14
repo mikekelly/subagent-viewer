@@ -1,19 +1,7 @@
 import React from 'react';
-import { Box, Text, Transform } from 'ink';
+import { Box, Text } from 'ink';
 import { AgentMessage, ContentBlock } from '../lib/parser.js';
 import { sanitizeText } from '../lib/sanitize.js';
-
-// ANSI escape code to clear from cursor to end of line
-const CLEAR_TO_EOL = '\x1B[K';
-
-// Wrapper component that adds clear-to-end-of-line to prevent garbled text
-function ClearText({ children, ...props }: React.ComponentProps<typeof Text>) {
-  return (
-    <Transform transform={(line) => line + CLEAR_TO_EOL}>
-      <Text {...props}>{children}</Text>
-    </Transform>
-  );
-}
 
 export interface MessageRendererProps {
   message: AgentMessage;
@@ -39,7 +27,7 @@ function renderContentBlock(block: ContentBlock, index: number) {
     case 'text':
       return (
         <Box key={index} flexDirection="column">
-          <ClearText wrap="wrap">{sanitizeText(block.text)}</ClearText>
+          <Text wrap="wrap">{sanitizeText(block.text)}</Text>
         </Box>
       );
 
@@ -47,8 +35,8 @@ function renderContentBlock(block: ContentBlock, index: number) {
       const inputStr = JSON.stringify(block.input, null, 2);
       return (
         <Box key={index} flexDirection="column" marginTop={1}>
-          <ClearText bold color="cyan">Tool: {sanitizeText(block.name)}</ClearText>
-          <ClearText dimColor wrap="wrap">{sanitizeText(truncate(inputStr, 200))}</ClearText>
+          <Text bold color="cyan">Tool: {sanitizeText(block.name)}</Text>
+          <Text dimColor wrap="wrap">{sanitizeText(truncate(inputStr, 200))}</Text>
         </Box>
       );
     }
@@ -59,8 +47,8 @@ function renderContentBlock(block: ContentBlock, index: number) {
         : JSON.stringify(block.content);
       return (
         <Box key={index} flexDirection="column" marginTop={1}>
-          <ClearText bold color="green">Tool result</ClearText>
-          <ClearText dimColor wrap="wrap">{sanitizeText(truncate(contentStr, 200))}</ClearText>
+          <Text bold color="green">Tool result</Text>
+          <Text dimColor wrap="wrap">{sanitizeText(truncate(contentStr, 200))}</Text>
         </Box>
       );
     }
@@ -68,7 +56,7 @@ function renderContentBlock(block: ContentBlock, index: number) {
     case 'thinking':
       return (
         <Box key={index} flexDirection="column" marginTop={1}>
-          <ClearText dimColor italic wrap="wrap">{sanitizeText(block.thinking)}</ClearText>
+          <Text dimColor italic wrap="wrap">{sanitizeText(block.thinking)}</Text>
         </Box>
       );
 
@@ -83,9 +71,9 @@ export function MessageRenderer({ message }: MessageRendererProps) {
 
   return (
     <Box flexDirection="column" marginBottom={1}>
-      <ClearText dimColor>[{timestamp}]</ClearText>
+      <Text dimColor>[{timestamp}]</Text>
       {typeof content === 'string' ? (
-        <ClearText color="yellow" wrap="wrap">{sanitizeText(content)}</ClearText>
+        <Text color="yellow" wrap="wrap">{sanitizeText(content)}</Text>
       ) : (
         content.map((block, index) => renderContentBlock(block, index))
       )}
