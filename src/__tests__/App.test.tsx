@@ -1,9 +1,13 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import { App } from '../components/App.js';
 import { AgentInfo } from '../lib/agentDiscovery.js';
 import { AgentMessage } from '../lib/parser.js';
+import * as useAgentStreamModule from '../hooks/useAgentStream.js';
+
+// Mock the useAgentStream hook
+const mockUseAgentStream = vi.fn();
 
 describe('App', () => {
   const mockAgents: AgentInfo[] = [
@@ -23,29 +27,37 @@ describe('App', () => {
     }
   ];
 
-  const mockGetMessages = (agentId: string): AgentMessage[] => {
-    if (agentId === 'abc123') {
-      return [
-        {
-          type: 'assistant',
-          agentId: 'abc123',
-          slug: 'test-agent-1',
-          timestamp: '2026-01-14T17:00:00.000Z',
-          message: {
-            role: 'assistant',
-            content: [
-              { type: 'text', text: 'Message from agent 1' }
-            ]
-          }
-        }
-      ];
+  const mockMessagesForAgent1: AgentMessage[] = [
+    {
+      type: 'assistant',
+      agentId: 'abc123',
+      slug: 'test-agent-1',
+      timestamp: '2026-01-14T17:00:00.000Z',
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Message from agent 1' }
+        ]
+      }
     }
-    return [];
-  };
+  ];
+
+  beforeEach(() => {
+    // Reset mock before each test
+    mockUseAgentStream.mockReset();
+
+    // Mock useAgentStream hook
+    vi.spyOn(useAgentStreamModule, 'useAgentStream').mockImplementation((filePath) => {
+      if (filePath === '/path/to/agent-abc123.jsonl') {
+        return { messages: mockMessagesForAgent1, isStreaming: true };
+      }
+      return { messages: [], isStreaming: false };
+    });
+  });
 
   it('should render split layout with sidebar and activity stream', () => {
     const { lastFrame } = render(
-      <App agents={mockAgents} getMessages={mockGetMessages} />
+      <App agents={mockAgents} />
     );
 
     const output = lastFrame();
@@ -55,7 +67,7 @@ describe('App', () => {
 
   it('should display agents in sidebar', () => {
     const { lastFrame } = render(
-      <App agents={mockAgents} getMessages={mockGetMessages} />
+      <App agents={mockAgents} />
     );
 
     const output = lastFrame();
@@ -65,7 +77,7 @@ describe('App', () => {
 
   it('should show activity for selected agent', () => {
     const { lastFrame } = render(
-      <App agents={mockAgents} getMessages={mockGetMessages} />
+      <App agents={mockAgents} />
     );
 
     const output = lastFrame();
@@ -75,7 +87,7 @@ describe('App', () => {
 
   it('should select first agent by default', () => {
     const { lastFrame } = render(
-      <App agents={mockAgents} getMessages={mockGetMessages} />
+      <App agents={mockAgents} />
     );
 
     const output = lastFrame();
@@ -85,7 +97,7 @@ describe('App', () => {
 
   it('should handle keyboard navigation with arrow down', () => {
     const { lastFrame, stdin } = render(
-      <App agents={mockAgents} getMessages={mockGetMessages} />
+      <App agents={mockAgents} />
     );
 
     // Simulate arrow down key
@@ -99,7 +111,7 @@ describe('App', () => {
 
   it('should handle keyboard navigation with arrow up', () => {
     const { lastFrame, stdin } = render(
-      <App agents={mockAgents} getMessages={mockGetMessages} />
+      <App agents={mockAgents} />
     );
 
     // Simulate arrow up key
@@ -112,7 +124,7 @@ describe('App', () => {
 
   it('should show empty state when no agents', () => {
     const { lastFrame } = render(
-      <App agents={[]} getMessages={mockGetMessages} />
+      <App agents={[]} />
     );
 
     const output = lastFrame();
@@ -132,7 +144,7 @@ describe('App', () => {
     ];
 
     const { lastFrame } = render(
-      <App agents={emptyAgents} getMessages={() => []} />
+      <App agents={emptyAgents} />
     );
 
     const output = lastFrame();

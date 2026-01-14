@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Box, useInput } from 'ink';
 import { AgentInfo } from '../lib/agentDiscovery.js';
-import { AgentMessage } from '../lib/parser.js';
 import { Sidebar } from './Sidebar.js';
 import { ActivityStream } from './ActivityStream.js';
+import { useAgentStream } from '../hooks/useAgentStream.js';
 
 export interface AppProps {
   agents: AgentInfo[];
-  getMessages: (agentId: string) => AgentMessage[];
 }
 
-export function App({ agents, getMessages }: AppProps) {
+export function App({ agents }: AppProps) {
   // Select first agent by default
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -22,6 +21,9 @@ export function App({ agents, getMessages }: AppProps) {
   });
 
   const selectedAgent = sortedAgents[selectedIndex];
+
+  // Stream messages for selected agent
+  const { messages, isStreaming } = useAgentStream(selectedAgent?.filePath ?? null);
 
   // Handle arrow key navigation
   useInput((input, key) => {
@@ -45,9 +47,6 @@ export function App({ agents, getMessages }: AppProps) {
     }
   }, [sortedAgents.length, selectedIndex]);
 
-  const messages = selectedAgent ? getMessages(selectedAgent.agentId) : [];
-  const isLive = selectedAgent?.isLive ?? false;
-
   return (
     <Box flexDirection="row" height="100%">
       <Box width={30} borderStyle="single" borderRight>
@@ -58,7 +57,7 @@ export function App({ agents, getMessages }: AppProps) {
         />
       </Box>
       <Box flexGrow={1}>
-        <ActivityStream messages={messages} isLive={isLive} />
+        <ActivityStream messages={messages} isLive={isStreaming} />
       </Box>
     </Box>
   );
