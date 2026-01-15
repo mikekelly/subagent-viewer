@@ -23,6 +23,7 @@ async function main() {
   let selectedAgentIndex = 0;
   let scrollOffset = 0;
   let autoScrollEnabled = true; // Auto-scroll for live agents
+  let focusedPanel: 'sidebar' | 'main' = 'sidebar'; // Track which panel is focused
 
   // Determine project directory
   const cwd = process.cwd();
@@ -48,10 +49,11 @@ async function main() {
     paddingRight: 1,
   });
 
-  // Header: Title (left)
+  // Header: Title (left) - include root directory name
+  const rootDirName = path.basename(projectPath);
   const title = new TextRenderable(renderer, {
     id: "header-title",
-    content: "Subagent Viewer",
+    content: `Subagent Viewer (${rootDirName})`,
   });
   header.add(title);
 
@@ -72,7 +74,7 @@ async function main() {
   // Header: Quit hint (right)
   const quitHint = new TextRenderable(renderer, {
     id: "quit-hint",
-    content: "a: auto-scroll | q: quit",
+    content: "h/l: focus | j/k: nav | a: auto-scroll | q: quit",
   });
   header.add(quitHint);
 
@@ -91,7 +93,7 @@ async function main() {
     id: "sidebar",
     width: 30,
     border: true,
-    borderStyle: "single",
+    borderStyle: "double", // Will be updated based on focus
     padding: 1,
     flexShrink: 0,
   });
@@ -214,6 +216,10 @@ async function main() {
 
   // ===== RENDER UPDATE FUNCTION =====
   const updateDisplay = () => {
+    // Update border styles based on focus
+    sidebar.borderStyle = focusedPanel === 'sidebar' ? 'double' : 'single';
+    mainPanel.borderStyle = focusedPanel === 'main' ? 'double' : 'single';
+
     // Update session tabs
     if (sessions.length === 0) {
       sessionTabs.content = "No sessions found";
@@ -227,7 +233,7 @@ async function main() {
           return shortId;
         })
         .join(" ");
-      sessionTabs.content = sessionTabsText;
+      sessionTabs.content = "Sessions: " + sessionTabsText;
     }
 
     // Update sidebar with agent list - separate active and inactive
@@ -604,24 +610,53 @@ async function main() {
         await loadAgents();
       }
     }
-    // Up arrow or k: move selection up
+    // h or Left arrow: focus sidebar
+    else if (event.name === "h" || event.name === "left") {
+      focusedPanel = 'sidebar';
+      updateDisplay();
+    }
+    // l or Right arrow: focus main panel
+    else if (event.name === "l" || event.name === "right") {
+      focusedPanel = 'main';
+      updateDisplay();
+    }
+    // Up arrow or k: context-sensitive navigation
     else if (event.name === "up" || event.name === "k") {
-      if (agents.length > 0) {
-        selectedAgentIndex = selectedAgentIndex === 0
-          ? agents.length - 1
-          : selectedAgentIndex - 1;
-        autoScrollEnabled = true; // Re-enable auto-scroll on agent change
-        setupAgentFileWatch();
-        await loadMessages();
+      if (focusedPanel === 'sidebar') {
+        // Navigate agents in sidebar
+        if (agents.length > 0) {
+          selectedAgentIndex = selectedAgentIndex === 0
+            ? agents.length - 1
+            : selectedAgentIndex - 1;
+          autoScrollEnabled = true; // Re-enable auto-scroll on agent change
+          setupAgentFileWatch();
+          await loadMessages();
+        }
+      } else {
+        // Scroll up in main panel
+        autoScrollEnabled = false;
+        scrollOffset = Math.max(0, scrollOffset - 1);
+        updateDisplay();
       }
     }
-    // Down arrow or j: move selection down
+    // Down arrow or j: context-sensitive navigation
     else if (event.name === "down" || event.name === "j") {
-      if (agents.length > 0) {
-        selectedAgentIndex = (selectedAgentIndex + 1) % agents.length;
-        autoScrollEnabled = true; // Re-enable auto-scroll on agent change
-        setupAgentFileWatch();
-        await loadMessages();
+      if (focusedPanel === 'sidebar') {
+        // Navigate agents in sidebar
+        if (agents.length > 0) {
+          selectedAgentIndex = (selectedAgentIndex + 1) % agents.length;
+          autoScrollEnabled = true; // Re-enable auto-scroll on agent change
+          setupAgentFileWatch();
+          await loadMessages();
+        }
+      } else {
+        // Scroll down in main panel
+        autoScrollEnabled = false;
+        const activityLines = getActivityLines();
+        const visibleLines = 10;
+        const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
+        scrollOffset = Math.min(maxScrollOffset, scrollOffset + 1);
+        updateDisplay();
       }
     }
     // PageUp: scroll up (disable auto-scroll)
