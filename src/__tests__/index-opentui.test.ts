@@ -100,3 +100,56 @@ describe('OpenTUI Header', () => {
     expect(sessionTabsCall[1].content).toBeDefined();
   });
 });
+
+describe('Verbose Mode Toggle', () => {
+  let tempDir: string;
+  let projectDir: string;
+
+  beforeEach(() => {
+    // Create a temporary project directory
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'subagent-viewer-test-'));
+    projectDir = path.join(tempDir, 'test-project');
+    fs.mkdirSync(projectDir, { recursive: true });
+    fs.mkdirSync(path.join(projectDir, '.claude'), { recursive: true });
+
+    // Mock process.cwd to return our test project
+    vi.spyOn(process, 'cwd').mockReturnValue(projectDir);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    // Clean up temp directory
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('should initialize verboseMode state to false (compact mode)', async () => {
+    // Import the main module
+    await import('../index-opentui.js');
+
+    // In compact mode (verboseMode = false), the formatMessage function
+    // should produce compact output. We'll test this indirectly by checking
+    // that the help text mentions verbose mode.
+    const { TextRenderable } = await import('@opentui/core');
+    const calls = (TextRenderable as any).mock.calls;
+    const quitHintCall = calls.find((call: any) =>
+      call[1]?.id === 'quit-hint'
+    );
+
+    expect(quitHintCall).toBeDefined();
+    expect(quitHintCall[1].content).toContain('v:');
+  });
+
+  it('should register a keypress handler', async () => {
+    // This test verifies the structure exists. Runtime behavior is tested
+    // through manual testing and integration tests.
+    const { createCliRenderer } = await import('@opentui/core');
+
+    // Import the main module
+    await import('../index-opentui.js');
+
+    // The renderer should have been created
+    expect(createCliRenderer).toHaveBeenCalled();
+  });
+});

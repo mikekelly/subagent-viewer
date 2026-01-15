@@ -6,6 +6,7 @@ import { getProjectPath, getClaudeProjectDir, listSessions, getSubagentsDir, Ses
 import { discoverAgents, AgentInfo } from "./lib/agentDiscovery.js";
 import { parseJsonlLine, AgentMessage } from "./lib/parser.js";
 import { sanitizeText } from "./lib/sanitize.js";
+import { formatMessageCompact } from "./lib/compactFormatter.js";
 
 async function main() {
   // Initialize renderer
@@ -24,6 +25,7 @@ async function main() {
   let scrollOffset = 0;
   let autoScrollEnabled = true; // Auto-scroll for live agents
   let focusedPanel: 'sidebar' | 'main' = 'sidebar'; // Track which panel is focused
+  let verboseMode = false; // Start in compact mode (false = compact, true = verbose)
 
   // Determine project directory
   const cwd = process.cwd();
@@ -74,7 +76,7 @@ async function main() {
   // Header: Quit hint (right)
   const quitHint = new TextRenderable(renderer, {
     id: "quit-hint",
-    content: "h/l: focus | j/k: nav | a: auto-scroll | q: quit",
+    content: "h/l: focus | j/k: nav | a: auto-scroll | v: verbose | q: quit",
   });
   header.add(quitHint);
 
@@ -162,6 +164,12 @@ async function main() {
 
   // Format a message for display
   const formatMessage = (msg: AgentMessage): string[] => {
+    // Use compact formatter when not in verbose mode
+    if (!verboseMode) {
+      return formatMessageCompact(msg);
+    }
+
+    // Verbose mode: full detail display
     const lines: string[] = [];
     const timestamp = new Date(msg.timestamp).toLocaleTimeString();
 
@@ -357,7 +365,8 @@ async function main() {
     const tokenInfo = totalTokens > 0 ? ` | Tokens: ${totalInputTokens} in / ${totalOutputTokens} out / ${totalTokens} total` : '';
     const modelInfo = `Model: ${modelDisplay}`;
     const autoScrollIndicator = autoScrollEnabled && currentAgent?.isLive ? " | Auto-scroll: ON" : "";
-    statusContent.content = `${modelInfo}${tokenInfo}${autoScrollIndicator}`;
+    const modeIndicator = ` | Mode: ${verboseMode ? 'Verbose' : 'Compact'}`;
+    statusContent.content = `${modelInfo}${tokenInfo}${autoScrollIndicator}${modeIndicator}`;
   };
 
   // ===== DATA LOADING AND WATCHING =====
@@ -686,6 +695,11 @@ async function main() {
     // 'a' key: toggle auto-scroll
     else if (event.name === "a") {
       autoScrollEnabled = !autoScrollEnabled;
+      updateDisplay();
+    }
+    // 'v' key: toggle verbose mode
+    else if (event.name === "v") {
+      verboseMode = !verboseMode;
       updateDisplay();
     }
   });
