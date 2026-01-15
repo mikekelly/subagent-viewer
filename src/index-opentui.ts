@@ -279,6 +279,10 @@ async function main() {
     const liveAgents = agents.filter(a => a.isLive);
     const completedAgents = agents.filter(a => !a.isLive);
 
+    // Sort each section by mtime (most recent first)
+    liveAgents.sort((a, b) => b.mtime - a.mtime);
+    completedAgents.sort((a, b) => b.mtime - a.mtime);
+
     const lines: string[] = [];
 
     if (liveAgents.length > 0) {
@@ -296,7 +300,7 @@ async function main() {
     }
 
     if (completedAgents.length > 0) {
-      lines.push(`Completed agents (${completedAgents.length}):`);
+      lines.push(`Inactive agents (${completedAgents.length}):`);
       completedAgents.forEach((agent) => {
         const agentIndex = agents.indexOf(agent);
         const displayText = agent.agentId.substring(0, 8);
@@ -644,8 +648,8 @@ async function main() {
   // ===== KEYBOARD INPUT HANDLERS =====
   // Handle keyboard events
   renderer.keyInput.on("keypress", async (event) => {
-    // Handle quit
-    if (event.name === "q") {
+    // Handle quit (both 'q' and Ctrl+C)
+    if (event.name === "q" || (event.ctrl && event.name === "c")) {
       // Clean up watchers
       if (sessionWatcher) sessionWatcher.close();
       if (agentDirWatcher) agentDirWatcher.close();
