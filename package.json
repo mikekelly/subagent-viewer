@@ -1,6 +1,6 @@
 {
   "name": "subagent-viewer",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "TUI for viewing Claude Code subagent activity in real-time",
   "type": "module",
   "bin": {
@@ -21,6 +21,15 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/subagent-viewer.git"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@opentui/core": "^0.1.72",
     "ink": "^6.6.0",

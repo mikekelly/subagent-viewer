@@ -1,7 +1,9 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.tsx'],
+  entry: {
+    index: 'src/index-opentui.ts',
+  },
   format: ['esm'],
   dts: true,
   clean: true,
@@ -9,6 +11,6 @@ export default defineConfig({
   target: 'es2022',
   outDir: 'dist',
   banner: {
-    js: '#!/usr/bin/env node',
+    js: '#!/usr/bin/env bun',
   },
 });

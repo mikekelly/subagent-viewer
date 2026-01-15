@@ -11,6 +11,7 @@ async function main() {
   // Initialize renderer
   const renderer = await createCliRenderer({
     exitOnCtrlC: false,
+    useMouse: true,
   });
 
   // ===== STATE =====
@@ -103,12 +104,6 @@ async function main() {
     flexShrink: 0,
   });
 
-  const sidebarTitle = new TextRenderable(renderer, {
-    id: "sidebar-title",
-    content: "Agents:",
-  });
-  sidebar.add(sidebarTitle);
-
   const sidebarContent = new TextRenderable(renderer, {
     id: "sidebar-content",
     content: "",
@@ -124,6 +119,33 @@ async function main() {
     borderStyle: "single",
     padding: 1,
     flexGrow: 1,
+    onMouseScroll: (event) => {
+      // Handle mouse wheel scrolling
+      if (event.scroll) {
+        const { lines: activityLines } = getActivityLines();
+        const visibleLines = getVisibleLines();
+        const contentLines = Math.max(1, visibleLines - 2);
+        const maxScrollOffset = Math.max(0, activityLines.length - contentLines);
+
+        if (event.scroll.direction === 'up') {
+          // Scroll up (decrease scrollOffset)
+          scrollOffset = Math.max(0, scrollOffset - 3);
+          // Disable autoscroll if we moved away from bottom
+          if (scrollOffset < maxScrollOffset) {
+            autoScrollEnabled = false;
+          }
+        } else if (event.scroll.direction === 'down') {
+          // Scroll down (increase scrollOffset)
+          scrollOffset = Math.min(maxScrollOffset, scrollOffset + 3);
+          // Enable autoscroll if we reached the bottom
+          if (scrollOffset >= maxScrollOffset) {
+            autoScrollEnabled = true;
+          }
+        }
+
+        updateDisplay();
+      }
+    },
   });
 
   const mainPanelContent = new TextRenderable(renderer, {
@@ -162,6 +184,14 @@ async function main() {
     const panelHeight = mainPanel.height;
     const baseOverhead = 6; // border + padding + "Activity Stream:" + blank line
     return Math.max(1, panelHeight - baseOverhead);
+  };
+
+  // Calculate the number of visible lines in the sidebar
+  const getSidebarVisibleLines = (): number => {
+    // Sidebar height includes: border (2) + padding (2) = 4 lines overhead
+    const sidebarHeight = sidebar.height;
+    const baseOverhead = 4; // border + padding
+    return Math.max(1, sidebarHeight - baseOverhead);
   };
 
   // Format a message for display
@@ -316,7 +346,34 @@ async function main() {
       lines.push("No agents found");
     }
 
-    sidebarContent.content = "\n" + lines.join("\n");
+    // Calculate sidebar offset to keep selected agent visible
+    const sidebarVisibleLines = getSidebarVisibleLines();
+    let sidebarOffset = 0;
+
+    if (lines.length > sidebarVisibleLines) {
+      // Find which line the selected agent is on
+      let selectedLineIndex = -1;
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].startsWith('> ')) {
+          selectedLineIndex = i;
+          break;
+        }
+      }
+
+      if (selectedLineIndex >= 0) {
+        // Calculate offset to keep selected agent roughly in the middle
+        const targetPosition = Math.floor(sidebarVisibleLines / 2);
+        sidebarOffset = Math.max(0, selectedLineIndex - targetPosition);
+
+        // Clamp offset to avoid showing empty space at bottom
+        const maxOffset = Math.max(0, lines.length - sidebarVisibleLines);
+        sidebarOffset = Math.min(sidebarOffset, maxOffset);
+      }
+    }
+
+    // Apply offset and slice visible lines
+    const visibleSidebarLines = lines.slice(sidebarOffset, sidebarOffset + sidebarVisibleLines);
+    sidebarContent.content = visibleSidebarLines.join("\n");
 
     // Update main panel with activity stream (with scrolling)
     const { lines: activityLines, eventStarts } = getActivityLines();
@@ -431,7 +488,12 @@ async function main() {
 
     const currentSession = sessions[selectedSessionIndex];
     const subagentsDir = getSubagentsDir(projectDir, currentSession.sessionId);
-    agents = await discoverAgents(subagentsDir);
+    const discoveredAgents = await discoverAgents(subagentsDir);
+
+    // Reorder agents to match visual display: active (sorted by mtime) then inactive (sorted by mtime)
+    const liveAgentsList = discoveredAgents.filter(a => a.isLive).sort((a, b) => b.mtime - a.mtime);
+    const inactiveAgentsList = discoveredAgents.filter(a => !a.isLive).sort((a, b) => b.mtime - a.mtime);
+    agents = [...liveAgentsList, ...inactiveAgentsList];
 
     // Clamp selected agent index
     if (selectedAgentIndex >= agents.length) {
@@ -688,10 +750,10 @@ async function main() {
       focusedPanel = 'main';
       updateDisplay();
     }
-    // Up arrow or k: context-sensitive navigation
+    // Up arrow or k: navigate agents up OR scroll activity
     else if (event.name === "up" || event.name === "k") {
       if (focusedPanel === 'sidebar') {
-        // Navigate agents in sidebar
+        // Navigate agents in sidebar (k/up = move up visually = decrease index)
         if (agents.length > 0) {
           selectedAgentIndex = selectedAgentIndex === 0
             ? agents.length - 1

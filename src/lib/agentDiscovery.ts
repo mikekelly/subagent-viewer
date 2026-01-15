@@ -8,6 +8,7 @@ export interface AgentInfo {
   filePath: string;
   startTime: string;
   isLive: boolean;
+  mtime: number; // File modification time in milliseconds
 }
 
 /**
@@ -44,7 +45,8 @@ export async function discoverAgents(subagentsDir: string): Promise<AgentInfo[]>
           slug: message.slug,
           filePath,
           startTime: message.timestamp,
-          isLive
+          isLive,
+          mtime: stats.mtimeMs
         });
       } catch {
         // Skip files that can't be read or parsed
