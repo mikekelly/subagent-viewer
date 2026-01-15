@@ -159,7 +159,8 @@ async function main() {
       const content = typeof msg.message.content === 'string' ? msg.message.content : '';
       // Skip empty or whitespace-only user messages
       if (content.trim() !== '') {
-        lines.push(`[${timestamp}] User: ${sanitizeText(content)}`);
+        lines.push(`[${timestamp}] User:`);
+        lines.push(`  ${sanitizeText(content)}`);
       }
     } else if (msg.type === 'assistant') {
       // Assistant messages have ContentBlock array
@@ -167,9 +168,11 @@ async function main() {
 
       for (const block of content) {
         if (block.type === 'thinking') {
-          lines.push(`[${timestamp}] Thinking: ${sanitizeText(block.thinking)}`);
+          lines.push(`[${timestamp}] Thinking:`);
+          lines.push(`  ${sanitizeText(block.thinking)}`);
         } else if (block.type === 'text') {
-          lines.push(`[${timestamp}] Text: ${sanitizeText(block.text)}`);
+          lines.push(`[${timestamp}] Text:`);
+          lines.push(`  ${sanitizeText(block.text)}`);
         } else if (block.type === 'tool_use') {
           const inputText = JSON.stringify(block.input, null, 2);
           lines.push(`[${timestamp}] Tool: ${block.name}`);
@@ -177,8 +180,9 @@ async function main() {
         } else if (block.type === 'tool_result') {
           const resultText = typeof block.content === 'string'
             ? block.content
-            : JSON.stringify(block.content);
-          lines.push(`[${timestamp}] Result: ${sanitizeText(resultText)}`);
+            : JSON.stringify(block.content, null, 2);
+          lines.push(`[${timestamp}] Tool Result:`);
+          lines.push(`  ${sanitizeText(resultText)}`);
         }
       }
     }
@@ -189,6 +193,19 @@ async function main() {
   // Convert messages to display lines
   const getActivityLines = (): string[] => {
     const lines: string[] = [];
+
+    // Find and display the initial prompt (first user message)
+    const firstUserMessage = messages.find(msg => msg.type === 'user');
+    if (firstUserMessage) {
+      const content = typeof firstUserMessage.message.content === 'string' ? firstUserMessage.message.content : '';
+      if (content.trim() !== '') {
+        lines.push("=== INITIAL PROMPT ===");
+        lines.push(sanitizeText(content));
+        lines.push("=== ACTIVITY STREAM ===");
+        lines.push("");
+      }
+    }
+
     for (const msg of messages) {
       lines.push(...formatMessage(msg));
     }
@@ -279,6 +296,9 @@ async function main() {
         activityText += "No messages yet.\nWaiting for agent activity...";
       }
     } else {
+      if (clampedScrollOffset > 0) {
+        activityText += "... (more above, use PageUp to scroll up)\n\n";
+      }
       activityText += visibleActivity.join("\n");
       if (clampedScrollOffset + visibleLines < activityLines.length) {
         activityText += "\n... (more below)";
@@ -286,22 +306,43 @@ async function main() {
     }
     mainPanelContent.content = activityText;
 
-    // Update status bar - calculate total tokens
+    // Update status bar - calculate total tokens and extract model
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
+    let modelName = '';
 
     for (const msg of messages) {
       if (msg.message.usage) {
         totalInputTokens += msg.message.usage.input_tokens || 0;
         totalOutputTokens += msg.message.usage.output_tokens || 0;
       }
+      // Extract model from the first message that has it
+      if (!modelName && msg.message.model) {
+        modelName = msg.message.model;
+      }
     }
 
     const totalTokens = totalInputTokens + totalOutputTokens;
-    const tokenInfo = totalTokens > 0 ? ` | Tokens: ${totalInputTokens} in / ${totalOutputTokens} out` : '';
-    const modelInfo = currentAgent ? `Agent: ${currentAgent.agentId.substring(0, 8)}` : 'No agent';
+
+    // Format model name (extract short version from full model ID)
+    let modelDisplay = 'unknown';
+    if (modelName) {
+      // Extract model type from full model ID (e.g., "claude-sonnet-4-20250514" -> "sonnet")
+      if (modelName.includes('sonnet')) {
+        modelDisplay = 'sonnet';
+      } else if (modelName.includes('opus')) {
+        modelDisplay = 'opus';
+      } else if (modelName.includes('haiku')) {
+        modelDisplay = 'haiku';
+      } else {
+        modelDisplay = modelName;
+      }
+    }
+
+    const tokenInfo = totalTokens > 0 ? ` | Tokens: ${totalInputTokens} in / ${totalOutputTokens} out / ${totalTokens} total` : '';
+    const modelInfo = `Model: ${modelDisplay}`;
     const autoScrollIndicator = autoScrollEnabled && currentAgent?.isLive ? " | Auto-scroll: ON" : "";
-    statusContent.content = `${modelInfo} | Messages: ${messages.length}${tokenInfo}${autoScrollIndicator}`;
+    statusContent.content = `${modelInfo}${tokenInfo}${autoScrollIndicator}`;
   };
 
   // ===== DATA LOADING AND WATCHING =====
@@ -372,8 +413,14 @@ async function main() {
       filePosition = content.length;
       partialLine = '';
 
-      // Auto-scroll to bottom when loading new agent
-      scrollOffset = Number.MAX_SAFE_INTEGER;
+      // Scroll position depends on agent status:
+      // - Live agents: scroll to bottom to show latest activity
+      // - Completed agents: scroll to top to show initial prompt
+      if (currentAgent.isLive) {
+        scrollOffset = Number.MAX_SAFE_INTEGER;
+      } else {
+        scrollOffset = 0;
+      }
 
       updateDisplay();
     } catch {

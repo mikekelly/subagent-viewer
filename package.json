@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "dev:opentui": "bun run src/index-opentui.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -21,6 +22,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@opentui/core": "^0.1.72",
     "ink": "^6.6.0",
     "react": "^19.2.3"
   },

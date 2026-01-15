@@ -18,6 +18,10 @@ export function sanitizeText(text: string): string {
   // Why: Main culprit for garbled text - has variable width
   result = result.replace(/⚡/g, '*');
 
+  // Replace rightward arrow (→ U+2192) with pipe
+  // Why: Has ambiguous terminal width - causes misalignment in Read tool output
+  result = result.replace(/→/g, '|');
+
   // Remove other common emojis that have variable widths
   // Why: Wide emojis break layout calculations
   // This regex matches emoji ranges in Unicode
