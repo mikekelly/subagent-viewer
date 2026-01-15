@@ -66,7 +66,7 @@ When uncertain, delegate. A redundant subagent costs less than polluting your co
 </task-management>
 
 <planning-depth>
-**Scale your planning to the task.** A one-file bug fix needs a task in `dot`. A multi-week feature might need outcome docs, plan docs, and a deep task tree. Use your judgment.
+**Scale your planning to the task.** A one-file bug fix needs a task in `tsk`. A multi-week feature might need outcome docs, plan docs, and a deep task tree. Use your judgment.
 
 **The principle:** Before delegating, have enough written down that work is recoverable if your context clears. The `tsk` task tree is how the next agent picks up where you left off.
 
@@ -97,7 +97,7 @@ When uncertain, delegate. A redundant subagent costs less than polluting your co
 3. Go passive — `<task-notification>` will wake you
 4. When notified, extract results: `tail -1 {output_file} | jq -r '.message.content[0].text'`
 
-Use `dot tree` anytime you want an overview of task statuses.
+Use `tsk tree` anytime you want an overview of task statuses.
 
 **Model selection:**
 - `sonnet` — Default for all work. Always override `Explore` agents to use sonnet.

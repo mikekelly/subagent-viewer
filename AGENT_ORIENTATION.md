@@ -1,14 +1,14 @@
 # Agent Orientation
 
 ## Purpose
-TUI application for real-time viewing of Claude Code subagent activity. Runs via `npx subagent-viewer`.
+TUI application for real-time viewing of Claude Code subagent activity. Runs via `bunx subagent-viewer`.
 
 ## Structure
 - Project is new — structure TBD during implementation
 - Likely TypeScript/Node based on npx distribution requirement
 
 ## Key Concepts
-- Uses the TUI library that opencode is based on
+- Uses OpenTUI (@opentui/core) for terminal rendering
 - Shows live subagents (streaming) and completed subagents (static)
 - Left panel: subagent list (live at top, completed below)
 - Main view: real-time activity stream (thinking, tool calls, outputs)
