@@ -51,11 +51,14 @@ async function main() {
     paddingRight: 1,
   });
 
-  // Header: Title (left) - include root directory name
-  const rootDirName = path.basename(projectPath);
+  // Header: Title (left) - include full path with ~ for home
+  const homeDir = os.homedir();
+  const displayPath = cwd.startsWith(homeDir)
+    ? `~${cwd.slice(homeDir.length)}`
+    : cwd;
   const title = new TextRenderable(renderer, {
     id: "header-title",
-    content: `Subagent Viewer (${rootDirName})`,
+    content: `Subagent Viewer (${displayPath})`,
   });
   header.add(title);
 
@@ -179,11 +182,24 @@ async function main() {
     };
 
     if (msg.type === 'user') {
-      // User messages have string content
-      const content = typeof msg.message.content === 'string' ? msg.message.content : '';
-      // Skip empty or whitespace-only user messages
-      if (content.trim() !== '') {
-        addContentLines(`[${timestamp}]${turnInfo} User:`, content);
+      // User messages can have string content OR array of ContentBlocks (e.g., tool_result)
+      if (typeof msg.message.content === 'string') {
+        // Skip empty or whitespace-only user messages
+        if (msg.message.content.trim() !== '') {
+          addContentLines(`[${timestamp}]${turnInfo} User:`, msg.message.content);
+        }
+      } else if (Array.isArray(msg.message.content)) {
+        // Handle ContentBlock arrays in user messages (e.g., tool_result blocks)
+        for (const block of msg.message.content) {
+          if (block.type === 'tool_result') {
+            const resultText = typeof block.content === 'string'
+              ? block.content
+              : JSON.stringify(block.content, null, 2);
+            addContentLines(`[${timestamp}]${turnInfo} Tool Result:`, resultText);
+          } else if (block.type === 'text') {
+            addContentLines(`[${timestamp}]${turnInfo} User:`, block.text);
+          }
+        }
       }
     } else if (msg.type === 'assistant') {
       // Assistant messages have ContentBlock array
