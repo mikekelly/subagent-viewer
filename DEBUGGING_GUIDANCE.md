@@ -119,3 +119,89 @@ it('should handle tool output with complex mixed content', () => {
   expect(result).toContain('Success');
 }
 ```
+
+## OpenTUI Scroll Calculation Issues
+
+### Can't Scroll to Bottom / Scroll Range Off By N Lines
+**Symptom**: User cannot scroll all the way to the bottom of content. The last N lines remain unreachable no matter how much they scroll down.
+
+**Root cause**: Double-subtraction (or N-times subtraction) of reserved space for UI elements like headers, footers, or indicators. This happens when:
+1. One function subtracts space for UI elements from available height
+2. Another function using that result subtracts the same space again
+3. The scroll range calculation uses an intermediate value that doesn't match what's actually displayed
+
+**Example of the bug**:
+```typescript
+// Bug: Double subtraction
+const getVisibleLines = () => {
+  return panelHeight - overhead - 2; // Subtract 2 for indicators
+};
+
+const updateDisplay = () => {
+  const visibleLines = getVisibleLines();
+  const contentLines = visibleLines - 2; // DOUBLE SUBTRACTION!
+  const maxScroll = totalLines - visibleLines; // Wrong reference!
+  // ...
+};
+```
+
+**Solution**: Subtract reserved space exactly ONCE, and ensure all calculations use consistent references:
+```typescript
+// Fixed: Single subtraction
+const getVisibleLines = () => {
+  return panelHeight - overhead; // Don't subtract indicator space here
+};
+
+const updateDisplay = () => {
+  const visibleLines = getVisibleLines();
+  const contentLines = visibleLines - 2; // Subtract once for indicators
+  const maxScroll = totalLines - contentLines; // Use the same value for range
+  // ...
+};
+```
+
+**Why this matters**: Every calculation in the scroll system must agree on how much content fits. If `maxScroll` is calculated with `visibleLines` but content is sliced using `contentLines`, the ranges don't match and you get unreachable content.
+
+**Diagnostic steps**:
+1. Find all places where space is subtracted for UI elements
+2. Trace how that value flows through calculations
+3. Ensure `maxScrollOffset` uses the same "lines to display" value as the actual content slicing
+4. Check that scroll event handlers use the same calculation as the main render
+
+## Text Content Sanitization
+
+### Newlines Stripped When They Should Be Preserved
+**Symptom**: Multi-line content (like JSON, multi-paragraph text, or formatted output) appears as a single continuous line with no line breaks.
+
+**Root cause**: Sanitization function unconditionally strips newlines without considering whether the display mode needs them. This happens when sanitization was originally designed for compact/single-line display but is then used in a verbose/multi-line mode.
+
+**Solution**: Coordinate between sanitization and rendering:
+1. If you need to preserve multi-line formatting, don't strip newlines in sanitization
+2. Update the rendering function to split on newlines and create separate display lines
+3. Keep other sanitization (ANSI codes, tabs, emojis) to prevent layout issues
+
+**Example**:
+```typescript
+// Before: Strips all newlines
+function sanitize(text: string): string {
+  let result = text.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, ''); // Strip ANSI
+  result = result.replace(/\n/g, ' '); // Strip newlines - BAD if you need them!
+  return result;
+}
+
+// After: Preserves newlines
+function sanitize(text: string): string {
+  let result = text.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, ''); // Strip ANSI
+  // DON'T strip newlines if multi-line display is needed
+  result = result.replace(/\t/g, ' '); // Still fix tabs
+  return result;
+}
+
+// Rendering handles newlines:
+function formatContent(content: string): string[] {
+  const sanitized = sanitize(content);
+  return sanitized.split('\n'); // Split into separate lines for display
+}
+```
+
+**Why this matters**: Text sanitization and text formatting are separate concerns. Sanitization should remove problematic characters that break layout. Formatting should handle structure (like line breaks).

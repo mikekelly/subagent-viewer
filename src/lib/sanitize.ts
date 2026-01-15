@@ -13,9 +13,8 @@ export function sanitizeText(text: string): string {
   // Why: ANSI codes can interfere with layout and aren't needed in TUI context
   result = result.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
 
-  // Replace newlines with spaces to prevent layout breaks
-  // Why: Newlines in tool output break single-line card layout in compact mode
-  result = result.replace(/\n/g, ' ');
+  // Preserve newlines - they're needed for multi-line content in verbose mode
+  // We no longer strip newlines; formatMessage splits content into separate lines
 
   // Replace tabs with spaces
   // Why: Tabs have variable width and break alignment

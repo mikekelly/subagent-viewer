@@ -6,7 +6,6 @@ import { getProjectPath, getClaudeProjectDir, listSessions, getSubagentsDir, Ses
 import { discoverAgents, AgentInfo } from "./lib/agentDiscovery.js";
 import { parseJsonlLine, AgentMessage } from "./lib/parser.js";
 import { sanitizeText } from "./lib/sanitize.js";
-import { formatMessageCompact } from "./lib/compactFormatter.js";
 
 async function main() {
   // Initialize renderer
@@ -25,7 +24,6 @@ async function main() {
   let scrollOffset = 0;
   let autoScrollEnabled = true; // Auto-scroll for live agents
   let focusedPanel: 'sidebar' | 'main' = 'sidebar'; // Track which panel is focused
-  let verboseMode = false; // Start in compact mode (false = compact, true = verbose)
   let currentEventIndex = 0; // Track which event (message) we're viewing
   let previousAgentId: string | null = null; // Track previously selected agent to detect agent switches
 
@@ -78,7 +76,7 @@ async function main() {
   // Header: Quit hint (right)
   const quitHint = new TextRenderable(renderer, {
     id: "quit-hint",
-    content: "h/l: focus | j/k: nav | {/}: event | a: auto-scroll | v: verbose | q: quit",
+    content: "h/l: focus | j/k: nav | {/}: event | a: auto-scroll | q: quit",
   });
   header.add(quitHint);
 
@@ -158,31 +156,34 @@ async function main() {
   // Calculate the number of visible lines in the activity panel
   const getVisibleLines = (): number => {
     // Panel height includes: border (2) + padding (2) + title line (1) + blank line (1) = 6 lines overhead
-    // Reserve 2 lines for MORE indicators (top and bottom rows)
     const panelHeight = mainPanel.height;
     const baseOverhead = 6; // border + padding + "Activity Stream:" + blank line
-    return Math.max(1, panelHeight - baseOverhead - 2); // -2 for MORE indicator rows
+    return Math.max(1, panelHeight - baseOverhead);
   };
 
   // Format a message for display
   const formatMessage = (msg: AgentMessage, turnNumber?: number, totalTurns?: number): string[] => {
-    // Use compact formatter when not in verbose mode
-    if (!verboseMode) {
-      return formatMessageCompact(msg, turnNumber, totalTurns);
-    }
-
-    // Verbose mode: full detail display
+    // Full detail display
     const lines: string[] = [];
     const timestamp = new Date(msg.timestamp).toLocaleTimeString();
     const turnInfo = turnNumber && totalTurns ? ` Turn ${turnNumber}/${totalTurns}` : '';
+
+    // Helper to split content by newlines and indent each line
+    const addContentLines = (header: string, content: string, indent: string = '  ') => {
+      lines.push(header);
+      const sanitized = sanitizeText(content);
+      const contentLines = sanitized.split('\n');
+      contentLines.forEach(line => {
+        lines.push(`${indent}${line}`);
+      });
+    };
 
     if (msg.type === 'user') {
       // User messages have string content
       const content = typeof msg.message.content === 'string' ? msg.message.content : '';
       // Skip empty or whitespace-only user messages
       if (content.trim() !== '') {
-        lines.push(`[${timestamp}]${turnInfo} User:`);
-        lines.push(`  ${sanitizeText(content)}`);
+        addContentLines(`[${timestamp}]${turnInfo} User:`, content);
       }
     } else if (msg.type === 'assistant') {
       // Assistant messages have ContentBlock array
@@ -190,21 +191,17 @@ async function main() {
 
       for (const block of content) {
         if (block.type === 'thinking') {
-          lines.push(`[${timestamp}]${turnInfo} Thinking:`);
-          lines.push(`  ${sanitizeText(block.thinking)}`);
+          addContentLines(`[${timestamp}]${turnInfo} Thinking:`, block.thinking);
         } else if (block.type === 'text') {
-          lines.push(`[${timestamp}]${turnInfo} Text:`);
-          lines.push(`  ${sanitizeText(block.text)}`);
+          addContentLines(`[${timestamp}]${turnInfo} Text:`, block.text);
         } else if (block.type === 'tool_use') {
           const inputText = JSON.stringify(block.input, null, 2);
-          lines.push(`[${timestamp}]${turnInfo} Tool: ${block.name}`);
-          lines.push(`  Input: ${sanitizeText(inputText)}`);
+          addContentLines(`[${timestamp}]${turnInfo} Tool: ${block.name}`, `Input: ${inputText}`);
         } else if (block.type === 'tool_result') {
           const resultText = typeof block.content === 'string'
             ? block.content
             : JSON.stringify(block.content, null, 2);
-          lines.push(`[${timestamp}]${turnInfo} Tool Result:`);
-          lines.push(`  ${sanitizeText(resultText)}`);
+          addContentLines(`[${timestamp}]${turnInfo} Tool Result:`, resultText);
         }
       }
     }
@@ -224,7 +221,9 @@ async function main() {
       const content = typeof firstUserMessage.message.content === 'string' ? firstUserMessage.message.content : '';
       if (content.trim() !== '') {
         lines.push("=== INITIAL PROMPT ===");
-        lines.push(sanitizeText(content));
+        const sanitized = sanitizeText(content);
+        const contentLines = sanitized.split('\n');
+        lines.push(...contentLines);
         lines.push("=== ACTIVITY STREAM ===");
         lines.push("");
       }
@@ -302,7 +301,10 @@ async function main() {
     // Update main panel with activity stream (with scrolling)
     const { lines: activityLines, eventStarts } = getActivityLines();
     const visibleLines = getVisibleLines();
-    const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
+
+    // Reserve 2 lines for MORE indicators (they're part of the display but not content)
+    const contentLines = Math.max(1, visibleLines - 2);
+    const maxScrollOffset = Math.max(0, activityLines.length - contentLines);
 
     // Auto-scroll to bottom if enabled and viewing a live agent
     const currentAgent = agents[selectedAgentIndex];
@@ -313,8 +315,6 @@ async function main() {
     const clampedScrollOffset = Math.min(scrollOffset, maxScrollOffset);
     scrollOffset = clampedScrollOffset; // Update to clamped value
 
-    // Reserve first and last lines for MORE indicators
-    const contentLines = visibleLines - 2;
     const contentStart = clampedScrollOffset;
     const contentEnd = contentStart + contentLines;
 
@@ -382,8 +382,7 @@ async function main() {
     const tokenInfo = totalTokens > 0 ? ` | Tokens: ${totalInputTokens} in / ${totalOutputTokens} out / ${totalTokens} total` : '';
     const modelInfo = `Model: ${modelDisplay}`;
     const autoScrollIndicator = autoScrollEnabled && currentAgent?.isLive ? " | Auto-scroll: ON" : "";
-    const modeIndicator = ` | Mode: ${verboseMode ? 'Verbose' : 'Compact'}`;
-    statusContent.content = `${modelInfo}${tokenInfo}${autoScrollIndicator}${modeIndicator}`;
+    statusContent.content = `${modelInfo}${tokenInfo}${autoScrollIndicator}`;
   };
 
   // ===== DATA LOADING AND WATCHING =====
@@ -685,7 +684,8 @@ async function main() {
         // Scroll up in main panel
         const { lines: activityLines } = getActivityLines();
         const visibleLines = getVisibleLines();
-        const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
+        const contentLines = Math.max(1, visibleLines - 2);
+        const maxScrollOffset = Math.max(0, activityLines.length - contentLines);
 
         scrollOffset = Math.max(0, scrollOffset - 1);
 
@@ -711,7 +711,8 @@ async function main() {
         // Scroll down in main panel
         const { lines: activityLines } = getActivityLines();
         const visibleLines = getVisibleLines();
-        const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
+        const contentLines = Math.max(1, visibleLines - 2);
+        const maxScrollOffset = Math.max(0, activityLines.length - contentLines);
         scrollOffset = Math.min(maxScrollOffset, scrollOffset + 1);
 
         // Enable autoscroll if we reached the bottom
@@ -726,7 +727,8 @@ async function main() {
     else if (event.name === "pageup") {
       const { lines: activityLines } = getActivityLines();
       const visibleLines = getVisibleLines();
-      const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
+      const contentLines = Math.max(1, visibleLines - 2);
+      const maxScrollOffset = Math.max(0, activityLines.length - contentLines);
 
       scrollOffset = Math.max(0, scrollOffset - 10);
 
@@ -741,7 +743,8 @@ async function main() {
     else if (event.name === "pagedown") {
       const { lines: activityLines } = getActivityLines();
       const visibleLines = getVisibleLines();
-      const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
+      const contentLines = Math.max(1, visibleLines - 2);
+      const maxScrollOffset = Math.max(0, activityLines.length - contentLines);
       scrollOffset = Math.min(maxScrollOffset, scrollOffset + 10);
 
       // Enable autoscroll if we reached the bottom
@@ -760,15 +763,11 @@ async function main() {
       if (!previousState && autoScrollEnabled) {
         const { lines: activityLines } = getActivityLines();
         const visibleLines = getVisibleLines();
-        const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
+        const contentLines = Math.max(1, visibleLines - 2);
+        const maxScrollOffset = Math.max(0, activityLines.length - contentLines);
         scrollOffset = maxScrollOffset;
       }
 
-      updateDisplay();
-    }
-    // 'v' key: toggle verbose mode
-    else if (event.name === "v") {
-      verboseMode = !verboseMode;
       updateDisplay();
     }
     // '{' key: jump to previous event
