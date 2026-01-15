@@ -79,6 +79,14 @@ export function MessageRenderer({ message }: MessageRendererProps) {
   const timestamp = formatTimestamp(message.timestamp);
   const content = message.message.content;
 
+  // Skip rendering empty user messages (string content that's empty or whitespace-only)
+  if (typeof content === 'string') {
+    const trimmedContent = content.trim();
+    if (trimmedContent === '') {
+      return null;
+    }
+  }
+
   return (
     <Box flexDirection="column" marginBottom={1}>
       <ClearText dimColor>[{timestamp}]</ClearText>

@@ -191,4 +191,64 @@ describe('MessageRenderer', () => {
 
     expect(output).toMatch(/\d{2}:\d{2}:\d{2}/); // HH:MM:SS format
   });
+
+  it('should not render empty user messages', () => {
+    const message: AgentMessage = {
+      type: 'user',
+      agentId: 'abc123',
+      slug: 'test-agent',
+      timestamp: '2026-01-14T17:00:00.000Z',
+      message: {
+        role: 'user',
+        content: ''
+      }
+    };
+
+    const { lastFrame } = render(<MessageRenderer message={message} />);
+    const output = lastFrame();
+
+    // Should only have the timestamp, no content after it
+    // The output should be essentially empty or just whitespace
+    const trimmed = output?.trim() || '';
+    expect(trimmed).toBe('');
+  });
+
+  it('should not render whitespace-only user messages', () => {
+    const message: AgentMessage = {
+      type: 'user',
+      agentId: 'abc123',
+      slug: 'test-agent',
+      timestamp: '2026-01-14T17:00:00.000Z',
+      message: {
+        role: 'user',
+        content: '   \n\t  '
+      }
+    };
+
+    const { lastFrame } = render(<MessageRenderer message={message} />);
+    const output = lastFrame();
+
+    // Should be empty
+    const trimmed = output?.trim() || '';
+    expect(trimmed).toBe('');
+  });
+
+  it('should render non-empty user messages', () => {
+    const message: AgentMessage = {
+      type: 'user',
+      agentId: 'abc123',
+      slug: 'test-agent',
+      timestamp: '2026-01-14T17:00:00.000Z',
+      message: {
+        role: 'user',
+        content: 'Fix the bug'
+      }
+    };
+
+    const { lastFrame } = render(<MessageRenderer message={message} />);
+    const output = lastFrame();
+
+    expect(output).toContain('Fix the bug');
+    expect(output).toContain('17:00:00');
+  });
 });

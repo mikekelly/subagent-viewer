@@ -157,7 +157,10 @@ async function main() {
     if (msg.type === 'user') {
       // User messages have string content
       const content = typeof msg.message.content === 'string' ? msg.message.content : '';
-      lines.push(`[${timestamp}] User: ${sanitizeText(content)}`);
+      // Skip empty or whitespace-only user messages
+      if (content.trim() !== '') {
+        lines.push(`[${timestamp}] User: ${sanitizeText(content)}`);
+      }
     } else if (msg.type === 'assistant') {
       // Assistant messages have ContentBlock array
       const content = Array.isArray(msg.message.content) ? msg.message.content : [];
