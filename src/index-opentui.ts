@@ -151,6 +151,15 @@ async function main() {
   renderer.root.add(root);
 
   // ===== HELPER FUNCTIONS =====
+  // Calculate the number of visible lines in the activity panel
+  const getVisibleLines = (): number => {
+    // Panel height includes: border (2) + padding (2) + title line (1) + blank line (1) = 6 lines overhead
+    // Also need to account for "more above/below" indicators (2 lines when both present)
+    const panelHeight = mainPanel.height;
+    const baseOverhead = 6; // border + padding + "Activity Stream:" + blank line
+    return Math.max(1, panelHeight - baseOverhead - 2); // -2 for potential "more above/below"
+  };
+
   // Format a message for display
   const formatMessage = (msg: AgentMessage): string[] => {
     const lines: string[] = [];
@@ -277,7 +286,7 @@ async function main() {
 
     // Update main panel with activity stream (with scrolling)
     const activityLines = getActivityLines();
-    const visibleLines = 10; // Number of visible lines in activity panel
+    const visibleLines = getVisibleLines();
     const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
 
     // Auto-scroll to bottom if enabled and viewing a live agent
@@ -653,7 +662,7 @@ async function main() {
         // Scroll down in main panel
         autoScrollEnabled = false;
         const activityLines = getActivityLines();
-        const visibleLines = 10;
+        const visibleLines = getVisibleLines();
         const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
         scrollOffset = Math.min(maxScrollOffset, scrollOffset + 1);
         updateDisplay();
