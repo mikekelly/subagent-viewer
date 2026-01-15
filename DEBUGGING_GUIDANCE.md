@@ -75,3 +75,40 @@ agents.sort((a, b) => a.startTime.localeCompare(b.startTime));
 ```
 
 **Why this matters**: Index-based selection requires stable array ordering. Without sorting, filesystem order changes cause indices to point to different agents across refreshes.
+
+## OpenTUI Rendering Issues
+
+### Garbled Text / Character Overlap (OpenTUI)
+**Symptom**: Text from different panels overlaps or mixes together. Characters appear in wrong positions. Content is unreadable with jumbled timestamps and text bleeding across panel boundaries.
+
+**Root cause**: Double-width Unicode characters (emojis) cause OpenTUI to miscalculate text width. OpenTUI's layout engine counts each emoji as 1 character for positioning, but terminals render them as 2 characters wide. This causes:
+- Text to overflow calculated box boundaries
+- Cursor positioning to be off by the width difference
+- Subsequent text to render at incorrect positions
+- Content from one panel to overlap into adjacent panels
+
+**Problematic characters**: Any double-width Unicode including emojis (👤, 💭, 📝, 🔧, ✗, ✓) and ambiguous-width characters (→).
+
+**Solution**: Use ASCII-only characters for all displayed content. Replace emojis with ASCII equivalents:
+- User: `[U]` instead of 👤
+- Thinking: `[?]` instead of 💭
+- Text: `[T]` instead of 📝
+- Tool: `[>]` instead of 🔧
+- Success: `[OK]` instead of ✓
+- Error: `[X]` instead of ✗
+- Arrow: `|` instead of →
+
+**Why other approaches fail**:
+- Sanitizing input content doesn't help if emojis are added by formatters
+- ANSI color codes are not the issue (they have zero width when properly terminated)
+- Box padding/borders don't prevent width miscalculation
+
+**Pattern to use**: Keep all display logic using single-width ASCII characters. Only use Unicode in raw content that gets sanitized before display.
+
+**Test**: Add test asserting no double-width characters in formatted output:
+```typescript
+const problematicChars = ['👤', '💭', '📝', '🔧', '✗', '✓', '→'];
+for (const char of problematicChars) {
+  expect(formattedText).not.toContain(char);
+}
+```

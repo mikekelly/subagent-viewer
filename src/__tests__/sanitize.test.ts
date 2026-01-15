@@ -49,11 +49,14 @@ describe('sanitizeText', () => {
     expect(result).toContain('normal');
   });
 
-  it('should preserve safe Unicode characters', () => {
+  it('should replace rightward arrow and preserve other safe Unicode characters', () => {
     const input = 'Test → bullet ● ellipsis … text';
     const result = sanitizeText(input);
 
-    expect(result).toContain('→');
+    // Rightward arrow should be replaced with pipe
+    expect(result).not.toContain('→');
+    expect(result).toContain('|');
+    // Other safe characters should be preserved
     expect(result).toContain('●');
     expect(result).toContain('…');
     expect(result).toContain('Test');

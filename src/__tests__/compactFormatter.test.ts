@@ -18,7 +18,7 @@ describe('formatMessageCompact', () => {
     const result = formatMessageCompact(message);
 
     expect(result).toHaveLength(1);
-    expect(result[0]).toContain('👤 User:');
+    expect(result[0]).toContain('[U] User:');
     expect(result[0]).toContain('Fix the bug');
     expect(result[0]).toContain('\x1b[34m'); // Blue color code
   });
@@ -40,7 +40,7 @@ describe('formatMessageCompact', () => {
     const result = formatMessageCompact(message);
 
     expect(result).toHaveLength(1);
-    expect(result[0]).toContain('💭 Thinking:');
+    expect(result[0]).toContain('[?] Thinking:');
     expect(result[0]).toContain('I should check the file first');
     expect(result[0]).toContain('\x1b[2m'); // Dim color code
   });
@@ -62,7 +62,7 @@ describe('formatMessageCompact', () => {
     const result = formatMessageCompact(message);
 
     expect(result).toHaveLength(1);
-    expect(result[0]).toContain('📝 Text:');
+    expect(result[0]).toContain('[T] Text:');
     expect(result[0]).toContain('Here is the solution');
   });
 
@@ -88,7 +88,7 @@ describe('formatMessageCompact', () => {
     const result = formatMessageCompact(message);
 
     expect(result).toHaveLength(1);
-    expect(result[0]).toContain('🔧 Tool: Bash');
+    expect(result[0]).toContain('[>] Tool: Bash');
     expect(result[0]).toContain('npm test');
     expect(result[0]).toContain('\x1b[33m'); // Yellow color code
   });
@@ -114,7 +114,7 @@ describe('formatMessageCompact', () => {
     const result = formatMessageCompact(message);
 
     expect(result).toHaveLength(1);
-    expect(result[0]).toContain('✓ Result:');
+    expect(result[0]).toContain('[OK] Result:');
     expect(result[0]).toContain('Tests passed!');
     expect(result[0]).toContain('\x1b[32m'); // Green color code
   });
@@ -222,5 +222,35 @@ describe('formatMessageCompact', () => {
     const result = formatMessageCompact(message);
 
     expect(result).toHaveLength(0);
+  });
+
+  it('should not contain double-width emojis that cause OpenTUI layout issues', () => {
+    const message: AgentMessage = {
+      type: 'assistant',
+      agentId: 'abc123',
+      slug: 'test-agent',
+      timestamp: '2026-01-14T17:00:00.000Z',
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'thinking', thinking: 'Analyzing the problem' },
+          { type: 'text', text: 'Here is the solution' },
+          { type: 'tool_use', id: '1', name: 'Read', input: { file: 'test.ts' } },
+          { type: 'tool_result', tool_use_id: '1', content: 'file contents', is_error: false }
+        ]
+      }
+    };
+
+    const result = formatMessageCompact(message);
+
+    // Check that no double-width emojis are present
+    // These emojis cause OpenTUI to miscalculate text width, leading to garbled rendering
+    const problematicEmojis = ['👤', '💭', '📝', '🔧', '✗', '✓', '→'];
+
+    for (const line of result) {
+      for (const emoji of problematicEmojis) {
+        expect(line, `Line should not contain emoji ${emoji} to prevent layout issues: "${line}"`).not.toContain(emoji);
+      }
+    }
   });
 });
