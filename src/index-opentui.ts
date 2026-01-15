@@ -678,7 +678,7 @@ async function main() {
     else if (event.name === "pagedown") {
       autoScrollEnabled = false;
       const activityLines = getActivityLines();
-      const visibleLines = 10;
+      const visibleLines = getVisibleLines();
       const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
       scrollOffset = Math.min(maxScrollOffset, scrollOffset + 10);
       updateDisplay();
