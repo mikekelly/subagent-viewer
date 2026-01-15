@@ -26,6 +26,8 @@ async function main() {
   let autoScrollEnabled = true; // Auto-scroll for live agents
   let focusedPanel: 'sidebar' | 'main' = 'sidebar'; // Track which panel is focused
   let verboseMode = false; // Start in compact mode (false = compact, true = verbose)
+  let currentEventIndex = 0; // Track which event (message) we're viewing
+  let previousAgentId: string | null = null; // Track previously selected agent to detect agent switches
 
   // Determine project directory
   const cwd = process.cwd();
@@ -76,7 +78,7 @@ async function main() {
   // Header: Quit hint (right)
   const quitHint = new TextRenderable(renderer, {
     id: "quit-hint",
-    content: "h/l: focus | j/k: nav | a: auto-scroll | v: verbose | q: quit",
+    content: "h/l: focus | j/k: nav | {/}: event | a: auto-scroll | v: verbose | q: quit",
   });
   header.add(quitHint);
 
@@ -156,29 +158,30 @@ async function main() {
   // Calculate the number of visible lines in the activity panel
   const getVisibleLines = (): number => {
     // Panel height includes: border (2) + padding (2) + title line (1) + blank line (1) = 6 lines overhead
-    // Also need to account for "more above/below" indicators (2 lines when both present)
+    // Reserve 2 lines for MORE indicators (top and bottom rows)
     const panelHeight = mainPanel.height;
     const baseOverhead = 6; // border + padding + "Activity Stream:" + blank line
-    return Math.max(1, panelHeight - baseOverhead - 2); // -2 for potential "more above/below"
+    return Math.max(1, panelHeight - baseOverhead - 2); // -2 for MORE indicator rows
   };
 
   // Format a message for display
-  const formatMessage = (msg: AgentMessage): string[] => {
+  const formatMessage = (msg: AgentMessage, turnNumber?: number, totalTurns?: number): string[] => {
     // Use compact formatter when not in verbose mode
     if (!verboseMode) {
-      return formatMessageCompact(msg);
+      return formatMessageCompact(msg, turnNumber, totalTurns);
     }
 
     // Verbose mode: full detail display
     const lines: string[] = [];
     const timestamp = new Date(msg.timestamp).toLocaleTimeString();
+    const turnInfo = turnNumber && totalTurns ? ` Turn ${turnNumber}/${totalTurns}` : '';
 
     if (msg.type === 'user') {
       // User messages have string content
       const content = typeof msg.message.content === 'string' ? msg.message.content : '';
       // Skip empty or whitespace-only user messages
       if (content.trim() !== '') {
-        lines.push(`[${timestamp}] User:`);
+        lines.push(`[${timestamp}]${turnInfo} User:`);
         lines.push(`  ${sanitizeText(content)}`);
       }
     } else if (msg.type === 'assistant') {
@@ -187,20 +190,20 @@ async function main() {
 
       for (const block of content) {
         if (block.type === 'thinking') {
-          lines.push(`[${timestamp}] Thinking:`);
+          lines.push(`[${timestamp}]${turnInfo} Thinking:`);
           lines.push(`  ${sanitizeText(block.thinking)}`);
         } else if (block.type === 'text') {
-          lines.push(`[${timestamp}] Text:`);
+          lines.push(`[${timestamp}]${turnInfo} Text:`);
           lines.push(`  ${sanitizeText(block.text)}`);
         } else if (block.type === 'tool_use') {
           const inputText = JSON.stringify(block.input, null, 2);
-          lines.push(`[${timestamp}] Tool: ${block.name}`);
+          lines.push(`[${timestamp}]${turnInfo} Tool: ${block.name}`);
           lines.push(`  Input: ${sanitizeText(inputText)}`);
         } else if (block.type === 'tool_result') {
           const resultText = typeof block.content === 'string'
             ? block.content
             : JSON.stringify(block.content, null, 2);
-          lines.push(`[${timestamp}] Tool Result:`);
+          lines.push(`[${timestamp}]${turnInfo} Tool Result:`);
           lines.push(`  ${sanitizeText(resultText)}`);
         }
       }
@@ -209,9 +212,11 @@ async function main() {
     return lines;
   };
 
-  // Convert messages to display lines
-  const getActivityLines = (): string[] => {
+  // Convert messages to display lines and track event boundaries
+  const getActivityLines = (): { lines: string[]; eventStarts: number[] } => {
     const lines: string[] = [];
+    const eventStarts: number[] = [];
+    const totalTurns = messages.length;
 
     // Find and display the initial prompt (first user message)
     const firstUserMessage = messages.find(msg => msg.type === 'user');
@@ -225,10 +230,12 @@ async function main() {
       }
     }
 
-    for (const msg of messages) {
-      lines.push(...formatMessage(msg));
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      eventStarts.push(lines.length); // Mark the start of this event
+      lines.push(...formatMessage(msg, i + 1, totalTurns));
     }
-    return lines;
+    return { lines, eventStarts };
   };
 
   // ===== RENDER UPDATE FUNCTION =====
@@ -293,7 +300,7 @@ async function main() {
     sidebarContent.content = "\n" + lines.join("\n");
 
     // Update main panel with activity stream (with scrolling)
-    const activityLines = getActivityLines();
+    const { lines: activityLines, eventStarts } = getActivityLines();
     const visibleLines = getVisibleLines();
     const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
 
@@ -306,10 +313,12 @@ async function main() {
     const clampedScrollOffset = Math.min(scrollOffset, maxScrollOffset);
     scrollOffset = clampedScrollOffset; // Update to clamped value
 
-    const visibleActivity = activityLines.slice(
-      clampedScrollOffset,
-      clampedScrollOffset + visibleLines
-    );
+    // Reserve first and last lines for MORE indicators
+    const contentLines = visibleLines - 2;
+    const contentStart = clampedScrollOffset;
+    const contentEnd = contentStart + contentLines;
+
+    const visibleActivity = activityLines.slice(contentStart, contentEnd);
 
     let activityText = "Activity Stream:\n\n";
     if (activityLines.length === 0) {
@@ -319,12 +328,20 @@ async function main() {
         activityText += "No messages yet.\nWaiting for agent activity...";
       }
     } else {
+      // Top MORE indicator (if there's content above)
       if (clampedScrollOffset > 0) {
-        activityText += "... (more above, use PageUp to scroll up)\n\n";
+        activityText += "^ MORE\n";
+      } else {
+        activityText += "\n"; // Blank line to maintain spacing
       }
+
       activityText += visibleActivity.join("\n");
-      if (clampedScrollOffset + visibleLines < activityLines.length) {
-        activityText += "\n... (more below)";
+
+      // Bottom MORE indicator (if there's content below)
+      if (contentEnd < activityLines.length) {
+        activityText += "\nv MORE";
+      } else {
+        activityText += "\n"; // Blank line to maintain spacing
       }
     }
     mainPanelContent.content = activityText;
@@ -419,6 +436,7 @@ async function main() {
       messages = [];
       filePosition = 0;
       partialLine = '';
+      currentEventIndex = 0;
       updateDisplay();
       return;
     }
@@ -437,14 +455,24 @@ async function main() {
       filePosition = content.length;
       partialLine = '';
 
-      // Scroll position depends on agent status:
-      // - Live agents: scroll to bottom to show latest activity
-      // - Completed agents: scroll to top to show initial prompt
-      if (currentAgent.isLive) {
-        scrollOffset = Number.MAX_SAFE_INTEGER;
-      } else {
-        scrollOffset = 0;
+      // Only reset scroll position when switching to a different agent
+      // If we're still viewing the same agent (status refresh), preserve scroll
+      const isSwitchingAgent = previousAgentId !== currentAgent.agentId;
+      previousAgentId = currentAgent.agentId;
+
+      if (isSwitchingAgent) {
+        // Scroll position depends on agent status:
+        // - Live agents: scroll to bottom to show latest activity
+        // - Completed agents: scroll to top to show initial prompt
+        if (currentAgent.isLive) {
+          scrollOffset = Number.MAX_SAFE_INTEGER;
+          currentEventIndex = Math.max(0, messages.length - 1);
+        } else {
+          scrollOffset = 0;
+          currentEventIndex = 0;
+        }
       }
+      // else: preserve existing scrollOffset and currentEventIndex
 
       updateDisplay();
     } catch {
@@ -452,6 +480,7 @@ async function main() {
       messages = [];
       filePosition = 0;
       partialLine = '';
+      currentEventIndex = 0;
       updateDisplay();
     }
   };
@@ -501,8 +530,10 @@ async function main() {
           if (newMessages.length > 0) {
             messages = [...messages, ...newMessages];
 
-            // Auto-scroll to bottom on new content
-            scrollOffset = Number.MAX_SAFE_INTEGER;
+            // Only auto-scroll to bottom if autoscroll is enabled
+            if (autoScrollEnabled) {
+              scrollOffset = Number.MAX_SAFE_INTEGER;
+            }
 
             updateDisplay();
           }
@@ -652,8 +683,17 @@ async function main() {
         }
       } else {
         // Scroll up in main panel
-        autoScrollEnabled = false;
+        const { lines: activityLines } = getActivityLines();
+        const visibleLines = getVisibleLines();
+        const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
+
         scrollOffset = Math.max(0, scrollOffset - 1);
+
+        // Disable autoscroll if we moved away from bottom
+        if (scrollOffset < maxScrollOffset) {
+          autoScrollEnabled = false;
+        }
+
         updateDisplay();
       }
     }
@@ -669,38 +709,91 @@ async function main() {
         }
       } else {
         // Scroll down in main panel
-        autoScrollEnabled = false;
-        const activityLines = getActivityLines();
+        const { lines: activityLines } = getActivityLines();
         const visibleLines = getVisibleLines();
         const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
         scrollOffset = Math.min(maxScrollOffset, scrollOffset + 1);
+
+        // Enable autoscroll if we reached the bottom
+        if (scrollOffset >= maxScrollOffset) {
+          autoScrollEnabled = true;
+        }
+
         updateDisplay();
       }
     }
     // PageUp: scroll up (disable auto-scroll)
     else if (event.name === "pageup") {
-      autoScrollEnabled = false;
+      const { lines: activityLines } = getActivityLines();
+      const visibleLines = getVisibleLines();
+      const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
+
       scrollOffset = Math.max(0, scrollOffset - 10);
+
+      // Disable autoscroll if we moved away from bottom
+      if (scrollOffset < maxScrollOffset) {
+        autoScrollEnabled = false;
+      }
+
       updateDisplay();
     }
-    // PageDown: scroll down (disable auto-scroll)
+    // PageDown: scroll down
     else if (event.name === "pagedown") {
-      autoScrollEnabled = false;
-      const activityLines = getActivityLines();
+      const { lines: activityLines } = getActivityLines();
       const visibleLines = getVisibleLines();
       const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
       scrollOffset = Math.min(maxScrollOffset, scrollOffset + 10);
+
+      // Enable autoscroll if we reached the bottom
+      if (scrollOffset >= maxScrollOffset) {
+        autoScrollEnabled = true;
+      }
+
       updateDisplay();
     }
     // 'a' key: toggle auto-scroll
     else if (event.name === "a") {
+      const previousState = autoScrollEnabled;
       autoScrollEnabled = !autoScrollEnabled;
+
+      // If we just enabled autoscroll, jump to bottom
+      if (!previousState && autoScrollEnabled) {
+        const { lines: activityLines } = getActivityLines();
+        const visibleLines = getVisibleLines();
+        const maxScrollOffset = Math.max(0, activityLines.length - visibleLines);
+        scrollOffset = maxScrollOffset;
+      }
+
       updateDisplay();
     }
     // 'v' key: toggle verbose mode
     else if (event.name === "v") {
       verboseMode = !verboseMode;
       updateDisplay();
+    }
+    // '{' key: jump to previous event
+    else if (event.sequence === "{") {
+      autoScrollEnabled = false;
+      const { eventStarts } = getActivityLines();
+      if (eventStarts.length > 0) {
+        // Cyclical: wrap to last event if at first
+        currentEventIndex = currentEventIndex === 0
+          ? eventStarts.length - 1
+          : currentEventIndex - 1;
+        scrollOffset = eventStarts[currentEventIndex];
+        updateDisplay();
+      }
+    }
+    // '}' key: jump to next event
+    else if (event.sequence === "}") {
+      autoScrollEnabled = false;
+      const { eventStarts } = getActivityLines();
+      if (eventStarts.length > 0) {
+        // Cyclical: wrap to first event if at last
+        currentEventIndex = (currentEventIndex + 1) % eventStarts.length;
+        scrollOffset = eventStarts[currentEventIndex];
+        updateDisplay();
+      }
     }
   });
 
