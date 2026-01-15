@@ -109,4 +109,71 @@ describe('sanitizeText', () => {
 
     expect(result).toBe('Some text...');
   });
+
+  it('should replace newlines with spaces to prevent layout breaks', () => {
+    const input = 'Line 1\nLine 2\nLine 3';
+    const result = sanitizeText(input);
+
+    expect(result).not.toContain('\n');
+    expect(result).toContain('Line 1');
+    expect(result).toContain('Line 2');
+    expect(result).toContain('Line 3');
+  });
+
+  it('should replace tabs with spaces', () => {
+    const input = 'Col1\tCol2\tCol3';
+    const result = sanitizeText(input);
+
+    expect(result).not.toContain('\t');
+    expect(result).toContain('Col1');
+    expect(result).toContain('Col2');
+    expect(result).toContain('Col3');
+  });
+
+  it('should replace carriage returns', () => {
+    const input = 'Text\rOverwrite';
+    const result = sanitizeText(input);
+
+    expect(result).not.toContain('\r');
+  });
+
+  it('should remove zero-width characters', () => {
+    const input = 'Test\u200BZero\u200CWidth\u200DSpace\uFEFF';
+    const result = sanitizeText(input);
+
+    expect(result).not.toContain('\u200B'); // Zero-width space
+    expect(result).not.toContain('\u200C'); // Zero-width non-joiner
+    expect(result).not.toContain('\u200D'); // Zero-width joiner
+    expect(result).not.toContain('\uFEFF'); // Zero-width no-break space
+    expect(result).toContain('Test');
+    expect(result).toContain('Zero');
+    expect(result).toContain('Width');
+    expect(result).toContain('Space');
+  });
+
+  it('should handle control characters', () => {
+    const input = 'Test\x00\x01\x02Control\x0B\x0CChars';
+    const result = sanitizeText(input);
+
+    // Should not contain control characters
+    expect(result).not.toMatch(/[\x00-\x08\x0B-\x1F]/);
+    expect(result).toContain('Test');
+    expect(result).toContain('Control');
+    expect(result).toContain('Chars');
+  });
+
+  it('should handle tool output with complex mixed content', () => {
+    // Simulate real tool output with ANSI codes, newlines, tabs
+    const input = '\x1B[32m✓\x1B[0m Success\n\tResult:\ttrue\n\tStatus:\t200';
+    const result = sanitizeText(input);
+
+    // Should not have ANSI codes, newlines, tabs, or check mark emoji
+    expect(result).not.toMatch(/\x1B\[[0-9;]*[a-zA-Z]/);
+    expect(result).not.toContain('\n');
+    expect(result).not.toContain('\t');
+    expect(result).not.toContain('✓');
+    expect(result).toContain('Success');
+    expect(result).toContain('Result:');
+    expect(result).toContain('true');
+  });
 });

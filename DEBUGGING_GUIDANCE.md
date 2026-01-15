@@ -81,34 +81,41 @@ agents.sort((a, b) => a.startTime.localeCompare(b.startTime));
 ### Garbled Text / Character Overlap (OpenTUI)
 **Symptom**: Text from different panels overlaps or mixes together. Characters appear in wrong positions. Content is unreadable with jumbled timestamps and text bleeding across panel boundaries.
 
-**Root cause**: Double-width Unicode characters (emojis) cause OpenTUI to miscalculate text width. OpenTUI's layout engine counts each emoji as 1 character for positioning, but terminals render them as 2 characters wide. This causes:
-- Text to overflow calculated box boundaries
-- Cursor positioning to be off by the width difference
-- Subsequent text to render at incorrect positions
-- Content from one panel to overlap into adjacent panels
+**Root cause**: Multiple types of problematic characters can cause garbled text:
+1. **Double-width Unicode characters** (emojis): OpenTUI counts each emoji as 1 character for positioning, but terminals render them as 2 characters wide
+2. **Control characters**: Newlines (`\n`), tabs (`\t`), carriage returns (`\r`) break single-line card layouts
+3. **ANSI escape codes**: Color codes and other terminal sequences from tool output
+4. **Zero-width characters**: Invisible characters that affect layout calculations
+5. **Variation selectors**: Unicode modifiers that change character display width
 
-**Problematic characters**: Any double-width Unicode including emojis (👤, 💭, 📝, 🔧, ✗, ✓) and ambiguous-width characters (→).
+**Common sources**: Tool output from JSONL files often contains terminal output with ANSI codes, newlines, tabs, and emojis.
 
-**Solution**: Use ASCII-only characters for all displayed content. Replace emojis with ASCII equivalents:
-- User: `[U]` instead of 👤
-- Thinking: `[?]` instead of 💭
-- Text: `[T]` instead of 📝
-- Tool: `[>]` instead of 🔧
-- Success: `[OK]` instead of ✓
-- Error: `[X]` instead of ✗
-- Arrow: `|` instead of →
+**Solution**: Aggressive sanitization in `sanitizeText()` function that handles ALL problematic character types:
+- Strip ANSI escape sequences FIRST (before other processing)
+- Replace newlines and tabs with spaces
+- Remove carriage returns and control characters
+- Remove zero-width characters and variation selectors
+- Replace or remove double-width emojis
 
-**Why other approaches fail**:
-- Sanitizing input content doesn't help if emojis are added by formatters
-- ANSI color codes are not the issue (they have zero width when properly terminated)
-- Box padding/borders don't prevent width miscalculation
+**Why order matters**: Strip ANSI codes first, then handle whitespace/control chars, then emojis. This prevents partial ANSI codes from being left behind.
 
-**Pattern to use**: Keep all display logic using single-width ASCII characters. Only use Unicode in raw content that gets sanitized before display.
+**Pattern to use**:
+1. Keep all display logic using single-width ASCII characters
+2. Apply `sanitizeText()` to ALL user-provided or tool-generated content before display
+3. Test with real tool output that contains mixed content (ANSI codes + newlines + emojis)
 
-**Test**: Add test asserting no double-width characters in formatted output:
+**Test pattern**:
 ```typescript
-const problematicChars = ['👤', '💭', '📝', '🔧', '✗', '✓', '→'];
-for (const char of problematicChars) {
-  expect(formattedText).not.toContain(char);
+it('should handle tool output with complex mixed content', () => {
+  // Simulate real tool output with ANSI codes, newlines, tabs, emojis
+  const input = '\x1B[32m✓\x1B[0m Success\n\tResult:\ttrue\n\tStatus:\t200';
+  const result = sanitizeText(input);
+
+  // Should not have ANY problematic characters
+  expect(result).not.toMatch(/\x1B\[[0-9;]*[a-zA-Z]/);
+  expect(result).not.toContain('\n');
+  expect(result).not.toContain('\t');
+  expect(result).not.toContain('✓');
+  expect(result).toContain('Success');
 }
 ```
