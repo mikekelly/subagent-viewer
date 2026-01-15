@@ -1,8 +1,0 @@
----
-title: Auto-scroll for live agents
-status: closed
-priority: 2
-issue-type: task
-created-at: "\"\\\"2026-01-15T00:01:25.550538+00:00\\\"\""
-closed-at: "2026-01-15T00:17:44.913434+00:00"
----
