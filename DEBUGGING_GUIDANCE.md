@@ -55,3 +55,23 @@ function ClearText({ children, ...props }: React.ComponentProps<typeof Text>) {
 ```
 
 Apply this wrapper to all Text components that display variable-length content.
+
+## Agent Selection Navigation Issues
+
+### Random Jumps When Navigating or Selection Pointing to Wrong Agent
+**Symptom**: When navigating through agents with Up/Down arrows, the selection jumps randomly to different agents. Or when staying on one agent, the selection suddenly shifts to a different agent after a few seconds.
+
+**Root cause**: Agent arrays are built from filesystem directory reads, which return files in arbitrary order. If agents aren't sorted consistently, the array order can change between calls. The periodic refresh (every 3 seconds) reloads agents, potentially reordering the array while `selectedAgentIndex` stays the same numeric value - now pointing to a different agent.
+
+**Example**:
+```
+Initial: agents = [a, b, c], selectedAgentIndex = 1 (agent 'b')
+After refresh: agents = [c, a, b], selectedAgentIndex = 1 (now agent 'a'!)
+```
+
+**Solution**: Sort agents consistently by a stable property like `startTime`:
+```typescript
+agents.sort((a, b) => a.startTime.localeCompare(b.startTime));
+```
+
+**Why this matters**: Index-based selection requires stable array ordering. Without sorting, filesystem order changes cause indices to point to different agents across refreshes.

@@ -52,6 +52,10 @@ export async function discoverAgents(subagentsDir: string): Promise<AgentInfo[]>
       }
     }
 
+    // Sort agents by startTime to ensure consistent order across calls
+    // This prevents navigation bugs when periodic refresh reorders the array
+    agents.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
     return agents;
   } catch {
     // Directory doesn't exist or can't be read

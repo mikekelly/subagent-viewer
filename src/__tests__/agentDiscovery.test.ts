@@ -126,5 +126,53 @@ describe('agentDiscovery', () => {
       const agents = await discoverAgents(nonExistent);
       expect(agents).toEqual([]);
     });
+
+    it('should return agents sorted by startTime', async () => {
+      // Create agents with different start times
+      const agent3 = {
+        type: 'user',
+        agentId: 'agent3',
+        slug: 'third-agent',
+        timestamp: '2026-01-14T17:02:00.000Z', // Latest
+        message: { role: 'user', content: [] }
+      };
+      const agent1 = {
+        type: 'user',
+        agentId: 'agent1',
+        slug: 'first-agent',
+        timestamp: '2026-01-14T17:00:00.000Z', // Earliest
+        message: { role: 'user', content: [] }
+      };
+      const agent2 = {
+        type: 'user',
+        agentId: 'agent2',
+        slug: 'second-agent',
+        timestamp: '2026-01-14T17:01:00.000Z', // Middle
+        message: { role: 'user', content: [] }
+      };
+
+      // Write files in arbitrary order (agent3, agent1, agent2)
+      // to simulate filesystem returning them in random order
+      await fs.promises.writeFile(
+        path.join(tmpDir, 'agent-agent3.jsonl'),
+        JSON.stringify(agent3)
+      );
+      await fs.promises.writeFile(
+        path.join(tmpDir, 'agent-agent1.jsonl'),
+        JSON.stringify(agent1)
+      );
+      await fs.promises.writeFile(
+        path.join(tmpDir, 'agent-agent2.jsonl'),
+        JSON.stringify(agent2)
+      );
+
+      const agents = await discoverAgents(tmpDir);
+
+      // Agents should be sorted by startTime (earliest first)
+      expect(agents).toHaveLength(3);
+      expect(agents[0].agentId).toBe('agent1');
+      expect(agents[1].agentId).toBe('agent2');
+      expect(agents[2].agentId).toBe('agent3');
+    });
   });
 });
