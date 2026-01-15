@@ -124,13 +124,11 @@ describe('Verbose Mode Toggle', () => {
     }
   });
 
-  it('should initialize verboseMode state to false (compact mode)', async () => {
+  it('should include navigation hints in quit hint', async () => {
     // Import the main module
     await import('../index-opentui.js');
 
-    // In compact mode (verboseMode = false), the formatMessage function
-    // should produce compact output. We'll test this indirectly by checking
-    // that the help text mentions verbose mode.
+    // Verify that the quit hint contains expected navigation commands
     const { TextRenderable } = await import('@opentui/core');
     const calls = (TextRenderable as any).mock.calls;
     const quitHintCall = calls.find((call: any) =>
@@ -138,7 +136,9 @@ describe('Verbose Mode Toggle', () => {
     );
 
     expect(quitHintCall).toBeDefined();
-    expect(quitHintCall[1].content).toContain('v:');
+    expect(quitHintCall[1].content).toContain('h/l:');
+    expect(quitHintCall[1].content).toContain('j/k:');
+    expect(quitHintCall[1].content).toContain('q: quit');
   });
 
   it('should register a keypress handler', async () => {

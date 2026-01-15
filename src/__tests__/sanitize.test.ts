@@ -110,11 +110,12 @@ describe('sanitizeText', () => {
     expect(result).toBe('Some text...');
   });
 
-  it('should replace newlines with spaces to prevent layout breaks', () => {
+  it('should preserve newlines for multi-line rendering', () => {
     const input = 'Line 1\nLine 2\nLine 3';
     const result = sanitizeText(input);
 
-    expect(result).not.toContain('\n');
+    // Newlines are now preserved for multi-line content in verbose mode
+    expect(result).toContain('\n');
     expect(result).toContain('Line 1');
     expect(result).toContain('Line 2');
     expect(result).toContain('Line 3');
@@ -167,11 +168,12 @@ describe('sanitizeText', () => {
     const input = '\x1B[32m✓\x1B[0m Success\n\tResult:\ttrue\n\tStatus:\t200';
     const result = sanitizeText(input);
 
-    // Should not have ANSI codes, newlines, tabs, or check mark emoji
+    // Should not have ANSI codes, tabs, or check mark emoji
+    // Newlines are now preserved for multi-line rendering
     expect(result).not.toMatch(/\x1B\[[0-9;]*[a-zA-Z]/);
-    expect(result).not.toContain('\n');
     expect(result).not.toContain('\t');
     expect(result).not.toContain('✓');
+    expect(result).toContain('\n'); // Newlines are preserved
     expect(result).toContain('Success');
     expect(result).toContain('Result:');
     expect(result).toContain('true');
