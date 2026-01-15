@@ -171,12 +171,14 @@ async function main() {
         } else if (block.type === 'text') {
           lines.push(`[${timestamp}] Text: ${sanitizeText(block.text)}`);
         } else if (block.type === 'tool_use') {
+          const inputText = JSON.stringify(block.input, null, 2);
           lines.push(`[${timestamp}] Tool: ${block.name}`);
+          lines.push(`  Input: ${sanitizeText(inputText)}`);
         } else if (block.type === 'tool_result') {
           const resultText = typeof block.content === 'string'
             ? block.content
             : JSON.stringify(block.content);
-          lines.push(`[${timestamp}] Result: ${sanitizeText(resultText.substring(0, 100))}`);
+          lines.push(`[${timestamp}] Result: ${sanitizeText(resultText)}`);
         }
       }
     }
@@ -221,7 +223,7 @@ async function main() {
       lines.push(`Active agents (${liveAgents.length}):`);
       liveAgents.forEach((agent) => {
         const agentIndex = agents.indexOf(agent);
-        const displayText = `${agent.slug} (${agent.agentId.substring(0, 8)})`;
+        const displayText = agent.agentId.substring(0, 8);
         if (agentIndex === selectedAgentIndex) {
           lines.push(`> ${displayText}`); // Show selection with arrow
         } else {
@@ -235,7 +237,7 @@ async function main() {
       lines.push(`Completed agents (${completedAgents.length}):`);
       completedAgents.forEach((agent) => {
         const agentIndex = agents.indexOf(agent);
-        const displayText = `${agent.slug} (${agent.agentId.substring(0, 8)})`;
+        const displayText = agent.agentId.substring(0, 8);
         if (agentIndex === selectedAgentIndex) {
           lines.push(`> ${displayText}`); // Show selection with arrow
         } else {
@@ -277,9 +279,6 @@ async function main() {
         activityText += "No messages yet.\nWaiting for agent activity...";
       }
     } else {
-      if (clampedScrollOffset > 0) {
-        activityText += "... (more above)\n";
-      }
       activityText += visibleActivity.join("\n");
       if (clampedScrollOffset + visibleLines < activityLines.length) {
         activityText += "\n... (more below)";
@@ -287,13 +286,22 @@ async function main() {
     }
     mainPanelContent.content = activityText;
 
-    // Update status bar
+    // Update status bar - calculate total tokens
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+
+    for (const msg of messages) {
+      if (msg.message.usage) {
+        totalInputTokens += msg.message.usage.input_tokens || 0;
+        totalOutputTokens += msg.message.usage.output_tokens || 0;
+      }
+    }
+
+    const totalTokens = totalInputTokens + totalOutputTokens;
+    const tokenInfo = totalTokens > 0 ? ` | Tokens: ${totalInputTokens} in / ${totalOutputTokens} out` : '';
     const modelInfo = currentAgent ? `Agent: ${currentAgent.agentId.substring(0, 8)}` : 'No agent';
-    const scrollPercentage = activityLines.length <= visibleLines
-      ? 100
-      : Math.round((clampedScrollOffset / maxScrollOffset) * 100);
     const autoScrollIndicator = autoScrollEnabled && currentAgent?.isLive ? " | Auto-scroll: ON" : "";
-    statusContent.content = `${modelInfo} | Messages: ${messages.length} | Scroll: ${scrollPercentage}% (${clampedScrollOffset + 1}-${Math.min(clampedScrollOffset + visibleLines, activityLines.length)}/${activityLines.length})${autoScrollIndicator}`;
+    statusContent.content = `${modelInfo} | Messages: ${messages.length}${tokenInfo}${autoScrollIndicator}`;
   };
 
   // ===== DATA LOADING AND WATCHING =====
@@ -517,22 +525,22 @@ async function main() {
   updateDisplay();
 
   // ===== KEYBOARD INPUT HANDLERS =====
-  // Handle quit
-  renderer.keyInput.on("q", () => {
-    // Clean up watchers
-    if (sessionWatcher) sessionWatcher.close();
-    if (agentDirWatcher) agentDirWatcher.close();
-    if (agentFileWatcher) agentFileWatcher.close();
-    clearInterval(refreshInterval);
-
-    console.log("\nExiting...");
-    renderer.destroy();
-    process.exit(0);
-  });
-
-  // Handle Tab (next session)
+  // Handle keyboard events
   renderer.keyInput.on("keypress", async (event) => {
-    if (event.name === "tab" && !event.shift) {
+    // Handle quit
+    if (event.name === "q") {
+      // Clean up watchers
+      if (sessionWatcher) sessionWatcher.close();
+      if (agentDirWatcher) agentDirWatcher.close();
+      if (agentFileWatcher) agentFileWatcher.close();
+      clearInterval(refreshInterval);
+
+      console.log("\nExiting...");
+      renderer.destroy();
+      process.exit(0);
+    }
+    // Tab: move to next session
+    else if (event.name === "tab" && !event.shift) {
       // Tab: move to next session
       if (sessions.length > 0) {
         selectedSessionIndex = (selectedSessionIndex + 1) % sessions.length;

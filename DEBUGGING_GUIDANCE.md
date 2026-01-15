@@ -1,5 +1,32 @@
 # Debugging Guidance
 
+## OpenTUI Keyboard Event Handling
+
+### Invalid Event Listener on Specific Keys
+**Symptom**: Keyboard shortcuts (like 'q' to quit) don't work. No errors in console.
+
+**Root cause**: OpenTUI's KeyHandler only emits three events: `keypress`, `keyrelease`, and `paste`. You cannot listen to specific key names like `renderer.keyInput.on("q", ...)`.
+
+**Solution**: Handle all keyboard input in the `keypress` event handler and check `event.name`:
+
+```typescript
+renderer.keyInput.on("keypress", async (event) => {
+  if (event.name === "q") {
+    // Handle quit
+  }
+  else if (event.name === "tab") {
+    // Handle tab
+  }
+  // ... other keys
+});
+```
+
+**Why this fails**:
+- `renderer.keyInput.on("q", ...)` - Never triggers, "q" is not a valid event type
+- KeyHandler extends EventEmitter but only emits `keypress`, `keyrelease`, `paste`
+
+**Pattern to use**: Single `keypress` handler with if/else-if chain checking `event.name`.
+
 ## Ink TUI Rendering Issues
 
 ### Garbled Text / Character Overlap
