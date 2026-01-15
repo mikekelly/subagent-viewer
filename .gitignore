@@ -20,4 +20,4 @@ dist/
 npm-debug.log*
 
 # Local task tracking
-.dots/
+.tsk/
